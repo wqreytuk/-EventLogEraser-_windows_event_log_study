@@ -14,3 +14,5 @@ C:\Windows\System32\winevt\Logs
 因此在windows运行期间，事件应该都是保存在内存中的
 
 我去，刚发现，这个目录里面的日志都是处于占用状态的
+
+被eventlog服务的svchost进程占用
