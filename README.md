@@ -40,3 +40,8 @@ https://github.com/wqreytuk/windows_event_log_study/blob/main/shellcode.c
 https://github.com/wqreytuk/windows_event_log_study/blob/main/%E4%B8%BB%E7%A8%8B%E5%BA%8F.c
 
 
+# 内存中的日志
+
+后面我们还需要删除掉暂存在内存中的日志
+
+
