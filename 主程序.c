@@ -214,6 +214,11 @@ int FindKeys(HANDLE hLsass, char* lsasrvMem) {
 
 int main(int argc, char** argv)
 {
+	/*bool flagasdad = 1;
+	if (!flagasdad && 0) {
+		printf("asd");
+	}
+	exit(-01);*/
 	DWORD _event_svchost_pid;
 
 		HRESULT hres;
