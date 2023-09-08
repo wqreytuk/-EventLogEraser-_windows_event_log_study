@@ -210,10 +210,65 @@ int FindKeys(HANDLE hLsass, char* lsasrvMem) {
 #include <comdef.h>
 #include <Wbemidl.h>
 
+bool FBFileExists(const char* szPath) {
+	DWORD dwAttrib = GetFileAttributesA(szPath);
+	return (dwAttrib != INVALID_FILE_ATTRIBUTES &&
+		!(dwAttrib & FILE_ATTRIBUTE_DIRECTORY));
+}
 #pragma comment(lib, "wbemuuid.lib")
+#include <iostream>
+#include <windows.h>
+#include <string>
+
 
 int main(int argc, char** argv)
 {
+	printf("usage: 20230908 eventid\n");
+	if (argc > 1) {
+		// 输入格式 20230908
+		std::string str(argv[1]);
+
+		// 将传入的参数转换为时间戳，和eventid一起写入文件中
+		// C:\users\public\mial
+		std::string win32TimeString = str+"000000.789"; // Replace with your Win32 time string
+
+		int year, month, day, hour, minute, second, milliseconds;
+		sscanf_s(win32TimeString.c_str(), "%4d%2d%2d%2d%2d%2d.%3d", &year, &month, &day, &hour, &minute, &second, &milliseconds);
+
+		SYSTEMTIME systemTime;
+		systemTime.wYear = year;
+		systemTime.wMonth = month;
+		systemTime.wDay = day;
+		systemTime.wHour = hour;
+		systemTime.wMinute = minute;
+		systemTime.wSecond = second;
+		systemTime.wMilliseconds = milliseconds;
+
+		FILETIME fileTime;
+		SystemTimeToFileTime(&systemTime, &fileTime);
+
+		ULONGLONG timestamp;
+		timestamp = (ULONGLONG)fileTime.dwHighDateTime << 32 | fileTime.dwLowDateTime;
+
+		std::cout << "Windows FILETIME Timestamp: " << timestamp << std::endl;
+		//char* _time_stamp = timestamp.c_str();
+		char finalinfile[40] = { 0 };
+		sprintf(finalinfile, "%016p", reinterpret_cast<DWORD64*>(timestamp));
+		sprintf(finalinfile+16, "%08x", atoi(argv[2]));
+		FILE* fptr;
+		if (FBFileExists("C:\\users\\public\\mial"))DeleteFileA("C:\\users\\public\\mial");
+		// Open a file in writing mode
+		fopen_s(&fptr, "C:\\users\\public\\mial", "w");
+
+		// Write some text to the file
+		fprintf(fptr, finalinfile);
+
+		// Close the file
+		fclose(fptr);
+		return 0;
+	}
+
+
 	/*bool flagasdad = 1;
 	if (!flagasdad && 0) {
 		printf("asd");
