@@ -29,3 +29,14 @@ https://github.com/wqreytuk/windows_event_log_study/blob/main/event_log_svchost_
 
 这个进程可能不允许第三方的dll被加载进去
 
+注入shellcode，hook住ntdll!NtWriteFile，直接返回，导致eventlog服务无法将日志写入evtx文件中，在重启之后，中间的所有日志都会丢失
+
+shellcode:
+
+https://github.com/wqreytuk/windows_event_log_study/blob/main/shellcode.c
+
+主程序：
+
+https://github.com/wqreytuk/windows_event_log_study/blob/main/%E4%B8%BB%E7%A8%8B%E5%BA%8F.c
+
+
