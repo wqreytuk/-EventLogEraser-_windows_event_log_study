@@ -45,3 +45,11 @@ https://github.com/wqreytuk/windows_event_log_study/blob/main/%E4%B8%BB%E7%A8%8B
 后面我们还需要删除掉暂存在内存中的日志
 
 
+
+
+这个网站记录了windows事件结构体
+
+https://www.sciencedirect.com/science/article/pii/S1742287607000424
+
+备份链接：https://github.com/wqreytuk/windows_event_log_study/blob/main/eventlog.7z
+
