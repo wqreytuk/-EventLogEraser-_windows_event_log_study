@@ -27,5 +27,5 @@ C:\Windows\System32\winevt\Logs
 
 https://github.com/wqreytuk/windows_event_log_study/blob/main/event_log_svchost_process_memory.c
 
-
+这个进程可能不允许第三方的dll被加载进去
 
