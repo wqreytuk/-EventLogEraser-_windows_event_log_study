@@ -20,3 +20,12 @@ C:\Windows\System32\winevt\Logs
 这个svchost进程会周期性的往evtx文件中写入，而且这些文件的句柄都是打开状态
 
 我们需要注入该进程，同时进行内存和文件的删除或者内容替换
+
+
+使用下面的代码，可以验证，eventlog服务进程的内存是可以被我们进行读取和写入的
+
+
+https://github.com/wqreytuk/windows_event_log_study/blob/main/event_log_svchost_process_memory.c
+
+
+
