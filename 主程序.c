@@ -227,6 +227,10 @@ int main(int argc, char** argv)
 	if (argc > 1) {
 		// 输入格式 20230908
 		std::string str(argv[1]);
+		if (atoi(argv[1]) == 0){
+			str = "00000000";
+		}
+
 
 		// 将传入的参数转换为时间戳，和eventid一起写入文件中
 		// C:\users\public\mial
@@ -531,6 +535,7 @@ int main(int argc, char** argv)
 	}
 
 	printf("rempote address %p\n", base);
+	MessageBoxA(NULL, "OK", "OK", MB_OK);
 	HANDLE thread = CreateRemoteThread(hw, NULL, NULL, (LPTHREAD_START_ROUTINE)base, NULL, 0, 0);
 	if (!thread)
 	{
