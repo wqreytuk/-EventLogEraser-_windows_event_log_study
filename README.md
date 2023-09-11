@@ -62,3 +62,4 @@ https://www.sciencedirect.com/science/article/pii/S1742287607000424
 
 因此我们可能需要hook完整，也就是说只过滤掉真正的record，其他的我们通过调用正常的函数来正常写入
 
+或者如果我们能够枚举eventlog进程中所有日志对象的实例，我们就能获取到handle的record区域地址的对应关系
