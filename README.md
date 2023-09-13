@@ -65,3 +65,7 @@ https://www.sciencedirect.com/science/article/pii/S1742287607000424
 或者如果我们能够枚举eventlog进程中所有日志对象的实例，我们就能获取到handle的record区域地址的对应关系
 
 又或者我们可以hook住rpc相关的函数，因为eventvwr肯定是从eventlog提供的rpc接口来拉取日志的，这样我们应该也能获取到record的地址
+
+# ElfFile CRC计算程序
+
+https://github.com/wqreytuk/windows_event_log_study/blob/main/ConsoleApplication2.cpp
