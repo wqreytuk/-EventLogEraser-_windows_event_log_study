@@ -73,3 +73,10 @@ https://github.com/wqreytuk/windows_event_log_study/blob/main/ConsoleApplication
 # ELFchunk CRC计算程序
 
 https://github.com/wqreytuk/windows_event_log_study/blob/main/elfchunk_crc.c
+
+# 更新
+
+之前都是误会，之所以我说更改一个bit就会导致文件错误是因为我修改的eventid是一个根本不存在的id，所以就报错了，但是如果你改成合法的eventid是没有问题的
+
+
+
