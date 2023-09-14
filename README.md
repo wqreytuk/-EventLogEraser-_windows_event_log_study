@@ -86,4 +86,11 @@ https://github.com/wqreytuk/windows_event_log_study/blob/main/elfchunk_crc.c
 之前都是误会，之所以我说更改一个bit就会导致文件错误是因为我修改的eventid是一个根本不存在的id，所以就报错了，但是如果你改成合法的eventid是没有问题的
 
 
+# g更新
+
+事实证明record是有crc的
+
+binxml的格式可以在这里找到
+
+https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-even6/7cdd0c95-2181-4794-a094-55c78b389358
 
