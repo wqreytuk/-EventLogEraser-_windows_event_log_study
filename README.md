@@ -69,3 +69,7 @@ https://www.sciencedirect.com/science/article/pii/S1742287607000424
 # ElfFile CRC计算程序
 
 https://github.com/wqreytuk/windows_event_log_study/blob/main/ConsoleApplication2.cpp
+
+# ELFchunk CRC计算程序
+
+https://github.com/wqreytuk/windows_event_log_study/blob/main/elfchunk_crc.c
