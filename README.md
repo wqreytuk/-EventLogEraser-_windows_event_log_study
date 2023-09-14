@@ -53,6 +53,13 @@ https://www.sciencedirect.com/science/article/pii/S1742287607000424
 
 备份链接：https://github.com/wqreytuk/windows_event_log_study/blob/main/eventlog.7z
 
+上面那个网站不太行，用下面这个
+
+https://github.com/libyal/libevtx/blob/main/documentation/Windows%20XML%20Event%20Log%20(EVTX).asciidoc
+
+备份链接
+
+https://github.com/wqreytuk/windows_event_log_study/blob/main/event_log_format.asciidoc
 
 不同种类的日志存放在内存中不同的区域当中，我需要找一下handle和内存区域之间的联系
 
