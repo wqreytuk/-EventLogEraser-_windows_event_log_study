@@ -104,5 +104,9 @@ https://github.com/wqreytuk/windows_event_log_study/blob/main/%E8%AE%A1%E7%AE%97
 计算的record是该elfchunk的所有record，结束位置是最后一个record指定的长度的位置，chunk的填充位不做计算
 
 
+## elfchunk CRC的另一种计算方式
 
+可以直接使用ntdll提供的rtlcomputecrc32来计算
+
+https://github.com/wqreytuk/windows_event_log_study/blob/main/elf_chnk_new_way_crc.c
 
