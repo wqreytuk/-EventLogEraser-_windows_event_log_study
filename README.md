@@ -110,3 +110,6 @@ https://github.com/wqreytuk/windows_event_log_study/blob/main/%E8%AE%A1%E7%AE%97
 
 https://github.com/wqreytuk/windows_event_log_study/blob/main/elf_chnk_new_way_crc.c
 
+## 计算chunk中所有record的另一种计算方式
+
+https://github.com/wqreytuk/windows_event_log_study/blob/main/record_crc_new_way.c
