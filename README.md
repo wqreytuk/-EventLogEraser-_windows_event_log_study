@@ -94,3 +94,15 @@ binxml的格式可以在这里找到
 
 https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-even6/7cdd0c95-2181-4794-a094-55c78b389358
 
+# 计算elfchunk中record的crc
+
+https://github.com/wqreytuk/windows_event_log_study/blob/main/%E8%AE%A1%E7%AE%97%E4%B8%80%E4%B8%AAchunk%E4%B8%ADrecord%E7%9A%84CRC.c
+
+
+其中crc的结果在elfchunk头的0x34偏移 dword
+
+计算的record是该elfchunk的所有record，结束位置是最后一个record指定的长度的位置，chunk的填充位不做计算
+
+
+
+
