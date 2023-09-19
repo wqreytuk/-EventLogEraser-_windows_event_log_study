@@ -113,3 +113,26 @@ https://github.com/wqreytuk/windows_event_log_study/blob/main/elf_chnk_new_way_c
 ## 计算chunk中所有record的另一种计算方式
 
 https://github.com/wqreytuk/windows_event_log_study/blob/main/record_crc_new_way.c
+
+
+# 深入理解evtx record结构
+
+重要参考文档：
+
+https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-even6/c73573ae-1c90-43a2-a65f-ad7501155956
+
+重要代码注释：
+https://github.com/wqreytuk/windows_event_log_study/blob/main/Evt%E4%BB%A3%E7%A0%81%E6%B3%A8%E9%87%8A.7z
+
+配套evtx文件
+
+https://github.com/wqreytuk/windows_event_log_study/blob/main/asdasdasdasdad.evtx
+
+注释的代码是python-evtx模块的库
+
+https://github.com/williballenthin/python-evtx
+
+代码，调试入口是evtx_record_structure.py
+
+
+
