@@ -141,3 +141,7 @@ https://github.com/wqreytuk/windows_event_log_study/blob/main/%E6%B7%B1%E5%85%A5
 
 解答了困扰我很长时间的疑惑
 
+
+# 获取日志文件中所有的eventid
+
+https://github.com/wqreytuk/windows_event_log_study/blob/main/get_all_record_event_id_from_evtx_file.c
