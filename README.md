@@ -135,4 +135,9 @@ https://github.com/williballenthin/python-evtx
 代码，调试入口是evtx_record_structure.py
 
 
+深入理解之实例分析：
+
+https://github.com/wqreytuk/windows_event_log_study/blob/main/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3record%E6%A0%BC%E5%BC%8F%EF%BC%8C%E7%A4%BA%E4%BE%8B%E5%88%86%E6%9E%90.md
+
+解答了困扰我很长时间的疑惑
 
