@@ -1,5 +1,7 @@
 #include<windows.h>
 #include<stdio.h>
+#include <tchar.h>
+#include <strsafe.h>
 
 // 获取日志文件中所有记录的eventid并输出
 int main() {
@@ -43,9 +45,57 @@ int main() {
             return -1;
         }
         // 0x10偏移就是record的个数（最后一条record的序号，从1开始）
-        DWORD64 _record_num = *(reinterpret_cast<DWORD64*>(_elfchunk_buffer + 0x10));
+        DWORD64 _record_num = *reinterpret_cast<DWORD64*>(_elfchunk_buffer + 0x10);
         printf("[*] total 0x%08p records in chunk: 0x%08p\n", reinterpret_cast<DWORD64*>(_record_num), reinterpret_cast<DWORD64*>(_current_chunk));
         free(_elfchunk_buffer);
+
+        // 下面开始遍历所有的record
+        // 重置文件指针
+        SetFilePointer(_file_handle, 0x1000 + 0x10000 * _current_chunk+0x200, NULL, FILE_BEGIN);
+        DWORD64 _current_record = 1;
+        while (1) {
+            // 我们需要把record的时间戳和length提取出来
+            BYTE* _record_header_buffer = (BYTE*)malloc(0x18);
+            if (0 == _record_header_buffer) {
+                printf("[-] odd! memory allocate failed, abort...\n");
+                break;
+            }
+            ZeroMemory(_record_header_buffer, 0x18);
+            _out = 0;
+            if (!ReadFile(_file_handle,
+                _record_header_buffer,
+                0x18,
+                &_out,
+                NULL
+            )) {
+                printf("[-] read evtx file failed, abort...\n");
+                return -1;
+            }
+            DWORD _record_length = *reinterpret_cast<DWORD*>(_record_header_buffer + 0x4);
+            FILETIME _record_time_stamp = *reinterpret_cast<FILETIME*>(_record_header_buffer + 0x10);
+            SYSTEMTIME stUTC, stLocal;
+            FileTimeToSystemTime(&_record_time_stamp, &stUTC);
+            SystemTimeToTzSpecificLocalTime(NULL, &stUTC, &stLocal);
+            TCHAR szBuf[MAX_PATH];
+            DWORD dwSize;
+            if (S_OK != StringCchPrintf(szBuf, dwSize,
+                TEXT("%02d/%02d/%d  %02d:%02d"),
+                stLocal.wMonth, stLocal.wDay, stLocal.wYear,
+                stLocal.wHour, stLocal.wMinute)) {
+                printf("[-] filetime convert failed, abort...\n");
+                exit(-1);
+            }
+            _tprintf(TEXT("current record time stamp: %s\n"), szBuf);
+
+            if (_current_record++ == _record_num) {
+                printf("[*] all records have been checked out\n");
+                break;
+            }
+            // 重置文件指针
+
+        }
+
+
 
         // 判断是否已经遍历完了所有的chunk
         if (0x1000 + 0x10000 * ++_current_chunk == _file_size)
