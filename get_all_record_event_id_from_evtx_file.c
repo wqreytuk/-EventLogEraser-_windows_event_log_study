@@ -195,7 +195,6 @@ int main() {
             _tprintf(TEXT("\t\ttime stamp: %s\n"), szBuf);
 
             // 下面我们就要开始解析binxml了
-            // 把整个record读到内存中
             DWORD64 _ofs_in_record = _record_offset_sum;
             // 0x18 record header
             _ofs_in_record += 0x18;
@@ -256,7 +255,7 @@ int main() {
                     _is_reference_offset = TRUE;
                 }
                 if (_tag_name._name_hash == EVENTID_NAME_HASH) {
-                    printf("\t\tEventID tag located at: %p\n", reinterpret_cast<BYTE*>(0x1000 + 0x10000 * _current_chunk + _current_tag_start));
+                    printf("\t\tEventID tag name located at: %p\n", reinterpret_cast<BYTE*>(0x1000 + 0x10000 * _current_chunk + _current_tag_start));
                     break;
                 }
                 // 如果不是eventid节点，那么就根据_element_length来略过该节点
