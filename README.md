@@ -149,3 +149,7 @@ https://github.com/wqreytuk/windows_event_log_study/blob/main/get_all_record_eve
 # 下一步的工作
 
 现在我们已经有能力获取到所有日志的eventid了，下一步我们要修改所有关键字段的值来隐藏掉我们不想让别人看见的信息
+
+# 从文件中删除日志的工具
+
+https://github.com/wqreytuk/windows_event_log_study/blob/main/%E6%97%A5%E5%BF%97%E5%88%A0%E9%99%A4%E7%A8%8B%E5%BA%8F.c
