@@ -667,3 +667,67 @@ e   OptionalSubstitutionToken
 
 取出来值是0x44e,就是eventid--》1102
 
+
+
+
+
+# 注意
+
+
+
+在binxxml中
+
+eventdata和userdata的嵌入是有区别的
+
+
+
+userdata的嵌入方式为
+
+```
+<EVENT>
+...
+<USERDATA>
+%1
+</USERDATA>
+</EVENT>
+```
+
+eventdata的嵌入方式为
+
+```
+<EVENT>
+...
+%1
+</EVENT>
+
+<EVENTDATA>标签存在于实际数据部分
+```
+
+实例：
+
+userdata
+
+```
+01 13 00 24 00 00 00 69 07 00 00 ED 05 00 00 35 44 08 00 55 00 73 00 65 00 72 00 44 00 61 00 74 00 61 00 00 00 02 0E 13 00 21 04 04 00
+```
+
+
+
+evetdata:
+
+```
+41 FF FF 12 00 00 00 1F 07 00 00 09 00 00 00 06 42 07 00 00 0E 0C 00 13 03 04 0E 11 00 21 04 00
+```
+
+这个翻译过来就是
+
+```
+<EVENT>
+<System>
+...
+<Security UserID=""></Security>
+</System>
+%1
+</EVENT>
+```
+
