@@ -145,3 +145,7 @@ https://github.com/wqreytuk/windows_event_log_study/blob/main/%E6%B7%B1%E5%85%A5
 # 获取日志文件中所有的eventid
 
 https://github.com/wqreytuk/windows_event_log_study/blob/main/get_all_record_event_id_from_evtx_file.c
+
+# 下一步的工作
+
+现在我们已经有能力获取到所有日志的eventid了，下一步我们要修改所有关键字段的值来隐藏掉我们不想让别人看见的信息
