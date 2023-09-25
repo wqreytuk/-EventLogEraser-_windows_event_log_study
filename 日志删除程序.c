@@ -5,7 +5,7 @@
 // 禁用padding
 #pragma pack(1)
 
-#define DEBUG
+// #define DEBUG
 
 #define EVENT_NAME_HASH 0x0CBA
 #define SYSTEM_NAME_HASH 0x546F
@@ -141,11 +141,15 @@ DWORD64 deal_target_tag(DWORD64 _current_chunk,
     _ofs_in_template += 0x1;
     // 现在我们应该会看到一个OptionalSubstitutionToken，然后是SubstitutionId，至于value type我直接忽略，因为我知道每个tag对应的类型
     _ofs_in_template += 0x1;
-    *_p_substitution_id = *reinterpret_cast<WORD*>(_chunk_buffer + _template_def_offset + _ofs_in_template);
+    // userdata标签的SubstitutionId，我们并不感兴趣
+    if (!_jump)
+        *_p_substitution_id = *reinterpret_cast<WORD*>(_chunk_buffer + _template_def_offset + _ofs_in_template);
     // SubstitutionId
     _ofs_in_template += 0x2;
     // 把关键_substitution_id存入表中
-    _Substitution_ID_TABLE[_table_index][_column_index] = *_p_substitution_id;
+    // userdata标签的SubstitutionId，我们并不感兴趣，所以不存
+    if(!_jump)
+        _Substitution_ID_TABLE[_table_index][_column_index] = *_p_substitution_id;
     // value type
     _ofs_in_template += 0x1;
     // EndElementToken 
@@ -156,7 +160,7 @@ DWORD64 deal_target_tag(DWORD64 _current_chunk,
 // 获取日志文件中所有记录的eventid并输出
 int main() {
     // 打开文件，逐个chunk进行遍历
-    HANDLE _file_handle = CreateFileA("C:\\Users\\123\\Documents\\ooooooooooo.evtxasdasd.evtx",
+    HANDLE _file_handle = CreateFileA("C:\\Users\\123\\Documents\\asdasdasdasdad.evtx",
         GENERIC_ALL,
         0,
         NULL,
@@ -324,7 +328,8 @@ int main() {
                     // 记录下来SubstitutionID，然后跳出循环即可
                     // 略过这两个连续的token
                     _ofs_in_template += 0x2;
-                    *reinterpret_cast<WORD*>(_chunk_buffer + _template_instance._template_def_offset + _ofs_in_template)
+                    _Substitution_ID_TABLE[_table_index][1] = *reinterpret_cast<WORD*>(_chunk_buffer + _template_instance._template_def_offset + _ofs_in_template);
+                    // 这时候就可以结束遍历了，直接跳出即可
                     break;
                 }
                 if (0x4 == *reinterpret_cast<BYTE*>(_chunk_buffer + _template_instance._template_def_offset + _ofs_in_template)) {
