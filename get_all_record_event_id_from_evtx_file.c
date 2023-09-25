@@ -10,6 +10,10 @@
 #define EVENT_NAME_HASH 0x0CBA
 #define SYSTEM_NAME_HASH 0x546F
 #define EVENTID_NAME_HASH 0x61F5
+#define USERDATA_NAME_HASH 0x4435
+// EventData标签的嵌入方式有点特别，详见
+// https://github.com/wqreytuk/windows_event_log_study/blob/main/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3record%E6%A0%BC%E5%BC%8F%EF%BC%8C%E7%A4%BA%E4%BE%8B%E5%88%86%E6%9E%90.md#%E6%B3%A8%E6%84%8F
+#define EVENTDATA_NAME_HASH 0x8244
 
 #define ENTRY_NUMBER 1024
 
@@ -18,27 +22,27 @@ typedef struct _TemplateInstace {
     BYTE    _unknown;
     DWORD   _template_id;
     DWORD   _template_def_offset;
-}TemplateInstace, * pTemplateInstace;
+}TemplateInstace, * PTemplateInstace;
 
 typedef struct _TemplateDef {
     DWORD   _unknown;
     GUID    _guid;
     DWORD   _template_def_length;
-}TemplateDef, * pTemplateDef;
+}TemplateDef, * PTemplateDef;
 
 typedef struct _StartElement {
     BYTE    _open_start_element_token;
     WORD    _dependency_id;
     DWORD   _element_length;
     DWORD   _name_offset;
-}StartElement, * pStartElement;
+}StartElement, * PStartElement;
 
 typedef struct _TagName {
     DWORD   _unknown;
     WORD    _name_hash;
     WORD    _unicode_string_length;
     // 后面跟的是unicode string，但是我们并不关心，我们只需要有name hash就可以判断tag name到底是啥了
-}TagName, * pTagName;
+}TagName, * PTagName;
 
 typedef struct _Attribute {
     BYTE    _attribute_token;
@@ -48,9 +52,9 @@ typedef struct _Attribute {
 // templatedef偏移表
 DWORD _Template_OFS_TABLE[ENTRY_NUMBER];
 // templatedef中的关键tag的SubstitutionID
-WORD _Substitution_ID_TABLE[ENTRY_NUMBER][1];
+WORD _Substitution_ID_TABLE[ENTRY_NUMBER][2];
 /*
-EVENTID
+EVENTID | EVENTDATA
 */
 // table index
 WORD _table_index;
@@ -75,7 +79,7 @@ DWORD64 iterate_attribute_list(BYTE* _base, DWORD64 _template_def_offset, DWORD6
         _init_ofs += sizeof(Attribute);
         // 判断是否引用了别的record
         if (!(_template_def_offset + _init_ofs > _attribute._name_offset)) {
-            TagName _tag_name = *reinterpret_cast<pTagName>(_base + _init_ofs);
+            TagName _tag_name = *reinterpret_cast<PTagName>(_base + _init_ofs);
             _init_ofs += sizeof(TagName);
             // 略过unicode string
             _init_ofs += ((DWORD64)_tag_name._unicode_string_length + 1) * 2;
@@ -106,10 +110,57 @@ DWORD64 iterate_attribute_list(BYTE* _base, DWORD64 _template_def_offset, DWORD6
     return _init_ofs;
 }
 
+DWORD64 deal_target_tag(DWORD64 _current_chunk,
+    DWORD64 _template_def_offset, DWORD64 _ofs_in_template, BOOL* _p_is_reference_offset,
+    BYTE* _chunk_buffer, PStartElement _start_element, PTagName _tag_name,
+    WORD* _p_substitution_id) {
+    BOOL _is_reference_offset = *_p_is_reference_offset;
+    WORD _column_index = 0;
+    BOOL _jump = FALSE;
+    if (!(_tag_name->_name_hash ^ EVENTID_NAME_HASH)) {
+        printf("\t\tEventID tag name located at: 0x%p\n", reinterpret_cast<BYTE*>(0x1000 + 0x10000 * _current_chunk + _template_def_offset + _ofs_in_template));
+        _column_index = 0;
+    }
+    else if (!(_tag_name->_name_hash ^ USERDATA_NAME_HASH)) {
+        printf("\t\tUserData tag name located at: 0x%p\n", reinterpret_cast<BYTE*>(0x1000 + 0x10000 * _current_chunk + _template_def_offset + _ofs_in_template));
+        // userdata标签不是我们感兴趣的标签，这个标签只有在clearlog事件中才会出现（至少目前来讲是这样的）
+        printf("\t\t[CHECK IF THIS EVENT IS A CLEAR LOG EVENT]\n");
+        _jump = TRUE;
+    }
+    if (!_is_reference_offset) {
+        _ofs_in_template += ((DWORD64)_tag_name->_unicode_string_length + 1) * 2;
+    }
+    else {
+        *_p_is_reference_offset = !_is_reference_offset;
+    }
+    if (_start_element->_open_start_element_token & 0x40) {
+        // 存在attribute
+        _ofs_in_template = iterate_attribute_list(_chunk_buffer + _template_def_offset, _template_def_offset, _ofs_in_template);
+    }
+    // CloseStartElementToken
+    _ofs_in_template += 0x1;
+    // 现在我们应该会看到一个OptionalSubstitutionToken，然后是SubstitutionId，至于value type我直接忽略，因为我知道每个tag对应的类型
+    _ofs_in_template += 0x1;
+    // userdata标签的SubstitutionId，我们并不感兴趣
+    if (!_jump)
+        *_p_substitution_id = *reinterpret_cast<WORD*>(_chunk_buffer + _template_def_offset + _ofs_in_template);
+    // SubstitutionId
+    _ofs_in_template += 0x2;
+    // 把关键_substitution_id存入表中
+    // userdata标签的SubstitutionId，我们并不感兴趣，所以不存
+    if(!_jump)
+        _Substitution_ID_TABLE[_table_index][_column_index] = *_p_substitution_id;
+    // value type
+    _ofs_in_template += 0x1;
+    // EndElementToken 
+    _ofs_in_template += 0x1;
+    return !_jump ? _ofs_in_template : 0;
+}
+
 // 获取日志文件中所有记录的eventid并输出
 int main() {
     // 打开文件，逐个chunk进行遍历
-    HANDLE _file_handle = CreateFileA("C:\\Users\\123\\Documents\\ooooooooooo.evtxasdasd.evtx",
+    HANDLE _file_handle = CreateFileA("C:\\Users\\123\\Documents\\asdasdasdasdad.evtx",
         GENERIC_ALL,
         0,
         NULL,
@@ -218,11 +269,11 @@ int main() {
                 printf("[NO TEMPLATE] oops! something I didn't expected\n");
                 exit(-1);
             }
-            TemplateInstace _template_instance = *reinterpret_cast<pTemplateInstace>(_chunk_buffer + _ofs_in_record);
+            TemplateInstace _template_instance = *reinterpret_cast<PTemplateInstace>(_chunk_buffer + _ofs_in_record);
             _ofs_in_record += sizeof(TemplateInstace);
 
 #ifdef DEBUG
-            printf("[DEBUG] template definition offset: %p\n", reinterpret_cast<BYTE*>((DWORD64)_template_instance._template_def_offset));
+            printf("[DEBUG] template definition offset: 0x%p\n", reinterpret_cast<BYTE*>((DWORD64)_template_instance._template_def_offset));
 #endif
             // 现在需要考虑这样一种情况，就是record2的templatedef用的是record1，也就是说record2的_template_instance._template_def_offset小于当前offset
             // 那么我们就可以通过判断上述事实是否成立来判断当前record是否使用了位于前面record中的template，如果是这样的话，TemplateInstanceData会立即出现在_ofs_in_record
@@ -244,34 +295,50 @@ int main() {
                 }
             }
             else {
-                TemplateDef _template_definition = *reinterpret_cast<pTemplateDef>(_chunk_buffer + _template_instance._template_def_offset);
+                TemplateDef _template_definition = *reinterpret_cast<PTemplateDef>(_chunk_buffer + _template_instance._template_def_offset);
                 _template_instance_data_offset = _ofs_in_record + sizeof(TemplateDef) + _template_definition._template_def_length;
                 // 进入该分支，说明还没有被处理过，将该templatedef的偏移量添加到表中
                 _Template_OFS_TABLE[_table_index] = _template_instance._template_def_offset;
             }
 #ifdef DEBUG
-            printf("[DEBUG] template instance data location: %p\n", reinterpret_cast<BYTE*>(0x1000 + 0x10000 * _current_chunk + _template_instance_data_offset));
+            printf("[DEBUG] template instance data location: 0x%p\n", reinterpret_cast<BYTE*>(0x1000 + 0x10000 * _current_chunk + _template_instance_data_offset));
 #endif
             // 有了_template_instance_data_offset之后
             // 我们就可以计算出来真正的数据的位置
             DWORD64 _real_data_offset = _template_instance_data_offset + 0x4 + (DWORD64)4 * (*reinterpret_cast<DWORD*>(_chunk_buffer + _template_instance_data_offset));
 #ifdef DEBUG
-            printf("[DEBUG] substitution data location: %p\n", reinterpret_cast<BYTE*>(0x1000 + 0x10000 * _current_chunk + _real_data_offset));
+            printf("[DEBUG] substitution data location: 0x%p\n", reinterpret_cast<BYTE*>(0x1000 + 0x10000 * _current_chunk + _real_data_offset));
 #endif
             // 下面我们需要解析template_def来找到eventid
             DWORD64 _ofs_in_template = 0;
             _ofs_in_template += sizeof(TemplateDef);
             // 0x4  fragment header
             _ofs_in_template += 4;
-            DWORD64 _current_tag_start = 0;
             // 遍历所有的tag
-            while (!(_expect_table_entry^0xFFFF)) {
+            while (!(_expect_table_entry ^ 0xFFFF)) {
+#ifdef DEBUG
+                printf("[DEBUG] offset in template: 0x%p\n", reinterpret_cast<BYTE*>(_ofs_in_template));
+                if (0x207 == _ofs_in_template)
+                    int a = 1;
+#endif
                 BOOL _is_reference_offset = FALSE;
-                _current_tag_start = _template_instance._template_def_offset + _ofs_in_template;
-                StartElement _start_element = *reinterpret_cast<pStartElement>(_chunk_buffer + _template_instance._template_def_offset + _ofs_in_template);
+                // 我们要先判断一下token，是否为0x4 EndElementToken，需要跳过1byte
+                if (0x0E04 == *reinterpret_cast<WORD*>(_chunk_buffer + _template_instance._template_def_offset + _ofs_in_template)) {
+                    // 如果碰到连续的两个TOKEN，0x4和0xE，说明我们已经遍历到EVENTDATA标签了
+                    // 记录下来SubstitutionID，然后跳出循环即可
+                    // 略过这两个连续的token
+                    _ofs_in_template += 0x2;
+                    _Substitution_ID_TABLE[_table_index][1] = *reinterpret_cast<WORD*>(_chunk_buffer + _template_instance._template_def_offset + _ofs_in_template);
+                    // 这时候就可以结束遍历了，直接跳出即可
+                    break;
+                }
+                if (0x4 == *reinterpret_cast<BYTE*>(_chunk_buffer + _template_instance._template_def_offset + _ofs_in_template)) {
+                    _ofs_in_template += 0x1;
+                }
+                StartElement _start_element = *reinterpret_cast<PStartElement>(_chunk_buffer + _template_instance._template_def_offset + _ofs_in_template);
                 _ofs_in_template += sizeof(StartElement);
                 // 对于StartElement，我们主要关心_name_offset，通过_name_offset可以定位到标签的名称
-                TagName _tag_name = *reinterpret_cast<pTagName>(_chunk_buffer + _start_element._name_offset);
+                TagName _tag_name = *reinterpret_cast<PTagName>(_chunk_buffer + _start_element._name_offset);
                 // 每次用到_name_offset的时候，我们都应该多加小心，因为他完全可以是引用的位于别的record记录中的位置
                 // 所以我们需要进行判断，判断这个_name_offset是否位于_template_instance._template_def_offset+_ofs_in_template的前面
                 // 如果是这样的话，_ofs_in_template就不需要往后偏移sizeof(TagName)，
@@ -281,24 +348,12 @@ int main() {
                 else {
                     _is_reference_offset = TRUE;
                 }
-                if (_tag_name._name_hash == EVENTID_NAME_HASH) {
-                    printf("\t\tEventID tag name located at: %p\n", reinterpret_cast<BYTE*>(0x1000 + 0x10000 * _current_chunk + _current_tag_start));
-                    if (!_is_reference_offset) {
-                        _ofs_in_template += ((DWORD64)_tag_name._unicode_string_length + 1) * 2;
-                        _is_reference_offset = !_is_reference_offset;
-                    }
-                    if (_start_element._open_start_element_token & 0x40) {
-                        // 存在attribute
-                        _ofs_in_template = iterate_attribute_list(_chunk_buffer + _template_instance._template_def_offset, _template_instance._template_def_offset, _ofs_in_template);
-                    }
-                    // CloseStartElementToken
-                    _ofs_in_template += 0x1;
-                    // 现在我们应该会看到一个OptionalSubstitutionToken，然后是SubstitutionId，至于value type我直接忽略，因为是固定的，0x6
-                    _ofs_in_template += 0x1;
-                    _substitution_id = *reinterpret_cast<WORD*>(_chunk_buffer + _template_instance._template_def_offset + _ofs_in_template);
-                    // 把关键_substitution_id存入表中
-                    _Substitution_ID_TABLE[_table_index][0] = _substitution_id;
-                    break;
+                if (!((_tag_name._name_hash ^ EVENTID_NAME_HASH) * (_tag_name._name_hash ^ USERDATA_NAME_HASH))) {
+                    _ofs_in_template = deal_target_tag(_current_chunk, _template_instance._template_def_offset, _ofs_in_template, &_is_reference_offset, _chunk_buffer, &_start_element, &_tag_name, &_substitution_id);
+                    // 如果返回值为0，说明当前处理的节点为EventData，所有我们关心的tag已经处理完毕
+                    // 直接跳出循环即可
+                    if (!_ofs_in_template)
+                        break;
                 }
                 // 如果不是eventid节点，那么就根据_element_length来略过该节点
                 // 但是并不是所有的节点我们都可以直接略过
@@ -327,9 +382,9 @@ int main() {
                         _ofs_in_template -= sizeof(TagName);
                 }
             }
-            if (_expect_table_entry==0xFFFF)
+            if (_expect_table_entry == 0xFFFF)
                 _table_index++;
-            else 
+            else
                 _substitution_id = _Substitution_ID_TABLE[_expect_table_entry][0];
             // 现在我们已经集齐了所有必要的元素，可以获得EventID标签的值了
             DWORD64 _iterate_start = _template_instance_data_offset + 0x4;
@@ -357,7 +412,7 @@ int main() {
             // 重置文件指针
             _record_offset_sum += _record_length;
         }
-        // 当前chunk遍历完成后应该重置所有的表及index
+        // 当前chunk遍历完成后应该重置所有的表及index，因为不存在跨chunk的引用
         ZeroMemory(_Template_OFS_TABLE, sizeof(_Template_OFS_TABLE));
         ZeroMemory(_Substitution_ID_TABLE, sizeof(_Substitution_ID_TABLE));
         _table_index = 0;
