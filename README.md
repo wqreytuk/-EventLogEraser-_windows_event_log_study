@@ -1,5 +1,5 @@
 # 成品工具
-https://github.com/wqreytuk/windows_event_log_study/releases/download/asd/ConsoleApplication3.exe
+https://github.com/wqreytuk/-EventLogEraser-_windows_event_log_study/releases/download/asd/ConsoleApplication2.exe
 
 可以直接暴力终止EventLog服务进程来解除日志文件的占用
 ![image](https://github.com/wqreytuk/-EventLogEraser-_windows_event_log_study/assets/48377190/0f2fd06a-9da9-427b-9546-413fe38169ac)
