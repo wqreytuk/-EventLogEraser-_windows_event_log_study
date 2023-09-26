@@ -157,7 +157,7 @@ https://github.com/wqreytuk/windows_event_log_study/blob/main/%E6%97%A5%E5%BF%97
 
 
 
-# shellcode
+# shellcode for eventlog service
 
 only for myself, you may hava to develop it on your own
 
