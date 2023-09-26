@@ -154,7 +154,7 @@ https://github.com/wqreytuk/windows_event_log_study/blob/main/get_all_record_eve
 
 https://github.com/wqreytuk/windows_event_log_study/blob/main/%E6%97%A5%E5%BF%97%E5%88%A0%E9%99%A4%E7%A8%8B%E5%BA%8F.c
 ## 成品工具
-
+https://github.com/wqreytuk/windows_event_log_study/releases/download/asd/ConsoleApplication3.exe
 
 
 # shellcode for eventlog service
