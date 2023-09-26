@@ -85,7 +85,7 @@ WORD _inner_table_index; // _INNER_Template_OFS_TABLE
 
 // 记录空EventData模板的偏移量
 DWORD _empty_event_data_offset_table[ENTRY_NUMBER];
-WORD _empty_inner_table_index; 
+WORD _empty_inner_table_index;
 
 /*
 我们主要针对3个频道：Application、Security、System
@@ -765,7 +765,7 @@ int main(int argc, char* argv[]) {
                 DWORD64 _ofs_in_event_data = 0;
                 // 后续测试发现这里并不总会出现一个fragmentheader(0F 01 01 00)
                 // 所以需要进行一下判断
-                if(0x1010F == *reinterpret_cast<DWORD*>(_chunk_buffer + _event_data_addr + _ofs_in_event_data))
+                if (0x1010F == *reinterpret_cast<DWORD*>(_chunk_buffer + _event_data_addr + _ofs_in_event_data))
                     _ofs_in_event_data += 0x4;
                 // 正常情况下都是模板token，不过判断一下也无妨
                 if (0xc != *reinterpret_cast<BYTE*>(_chunk_buffer + _event_data_addr + _ofs_in_event_data)) {
