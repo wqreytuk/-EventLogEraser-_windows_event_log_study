@@ -5,7 +5,7 @@
 // 禁用padding
 #pragma pack(1)
 
-#define DEBUG
+// #define DEBUG
 
 #define EVENT_NAME_HASH 0x0CBA
 #define SYSTEM_NAME_HASH 0x546F
