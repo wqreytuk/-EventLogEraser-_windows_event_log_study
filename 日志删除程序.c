@@ -420,6 +420,7 @@ VOID recalculate_crc(HANDLE _file_handle, PNT_RtlComputeCrc32 NT_RtlComputeCrc32
 }
 // 获取日志文件中所有记录的eventid并输出
 int main(int argc, char* argv[]) {
+    printf("\t\t\t\t<-- proudly provided by 12138 [144.one] -->\n\n");
     if (argc != 6) {
         printf("[*] usage:\n\tEventLogEraser.exe path\\to\\evtx channel target_event_id date number\n\n");
         printf("\tchannel value:\n");
