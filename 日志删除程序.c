@@ -895,8 +895,13 @@ int main(int argc, char* argv[]) {
         }
         // 当前chunk遍历完成后应该重置所有的表及index，因为不存在跨chunk的引用
         ZeroMemory(_Template_OFS_TABLE, sizeof(_Template_OFS_TABLE));
+        ZeroMemory(_INNER_Template_OFS_TABLE, sizeof(_INNER_Template_OFS_TABLE));
         ZeroMemory(_Substitution_ID_TABLE, sizeof(_Substitution_ID_TABLE));
+        ZeroMemory(_empty_event_data_offset_table, sizeof(_empty_event_data_offset_table));
+
         _table_index = 0;
+        _empty_inner_table_index = 0;
+        _inner_table_index = 0;
         // 判断是否已经遍历完了所有的chunk
         if (_record_sequence_number == _last_record_sequence_number) {
             printf("[+] total 0x%p erased\n\n", reinterpret_cast<DWORD*>((DWORD64)_already_erased_counter));
