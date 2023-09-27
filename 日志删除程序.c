@@ -101,6 +101,7 @@ typedef struct _Channel_Value {
     DWORD64 _key_words;
     WORD _event_id;
 }ChannelValue, PChannelBValue;
+
 ChannelValue _Channel_Value_Table[3] = {
     {0,4,0xFFFFFFFFFFFFFFFF,1003},
     {13826,0xFF,0x8020000000000000,4799},
