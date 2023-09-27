@@ -46,6 +46,9 @@ System和EventData，我们清空了EventData，但是System节点中也有一�
 
 **shellcode部分不对外开放**
 
+# 源码：
+
+https://github.com/wqreytuk/windows_event_log_study/blob/main/%E6%97%A5%E5%BF%97%E5%88%A0%E9%99%A4%E7%A8%8B%E5%BA%8F.c
 
 
 # 成品工具
