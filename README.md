@@ -1,3 +1,43 @@
+# 特点
+
+本工具和其他日志清除工具的区别在于，我并不会直接删除掉指定的日志条目，由于windows的binxml编码标准提供了模板特性，所以直接删除掉日志条目
+存在损坏整个日志文件的风险，因为被删除的日志条目很有可能定义了其他日志记录依赖的模板，并且同一chunk中的不同record之间还存在字符串的引用情况
+
+而且直接删除日志条目，需要更新后续所有日志记录的recordid字段
+
+本工具采用的方式是将目标record的eventdata部分的数据抹掉，具体的实现方式是将EventData模板的NormalSubstitutionToken替换成OptionalSubstitutionToken 
+
+然后再将数据定义部分的长度字段设置为0，之后将实际数据部分全部清空，即可达到下面的效果
+
+### 原始日志条目
+
+![image](https://github.com/wqreytuk/-EventLogEraser-_windows_event_log_study/assets/48377190/bdf2476f-4100-45cc-b68f-8690910ef7c1)
+
+![image](https://github.com/wqreytuk/-EventLogEraser-_windows_event_log_study/assets/48377190/9ccdee11-0957-43c2-a80b-113b8b45a68d)
+
+### 修改后的日志条目
+
+![image](https://github.com/wqreytuk/-EventLogEraser-_windows_event_log_study/assets/48377190/1340de84-1248-4262-a542-788600a3fd38)
+
+![image](https://github.com/wqreytuk/-EventLogEraser-_windows_event_log_study/assets/48377190/570588df-c38c-4b30-82b8-a745e1506b7b)
+
+
+可以看到在xml视图中EventData变成了空标签
+
+另外就是你会发现EventID被修改了，一个record，从xml的角度来讲，根节点是Event，包含两个子节点
+System和EventData，我们清空了EventData，但是System节点中也有一些数据是我们不想让别人看到的
+
+我在程序中预设了EventID、Level、Task、Keywords四个字段，目标record的这四个字段会被修改成预设的值以最大限度地和正常的record混在一起
+
+理论上讲，本工具不会损坏日志文件，再修改完日志之后从eventvwr或者wevtutil对日志进行操作时不应该产生任何异常
+
+
+**本工具可以进一步修改为shellcode，然后注入到eventlog服务进程中，直接对日志进行修改，从而避免产生eventlog服务日志**
+
+**shellcode部分不对外开放**
+
+
+
 # 成品工具
 https://github.com/wqreytuk/-EventLogEraser-_windows_event_log_study/releases/download/asd/ConsoleApplication2.exe
 
