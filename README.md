@@ -1,6 +1,8 @@
 # 成品工具
 https://github.com/wqreytuk/-EventLogEraser-_windows_event_log_study/releases/download/asd/ConsoleApplication2.exe
 
+(使用的时候将输出重定向到文件中可以极大的加快运行速度，因为打印很耗时间)
+
 可以直接暴力终止EventLog服务进程来解除日志文件的占用
 ![image](https://github.com/wqreytuk/-EventLogEraser-_windows_event_log_study/assets/48377190/0f2fd06a-9da9-427b-9546-413fe38169ac)
 
