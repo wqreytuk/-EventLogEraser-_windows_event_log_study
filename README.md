@@ -56,6 +56,14 @@ https://github.com/wqreytuk/-EventLogEraser-_windows_event_log_study/releases/do
 可以直接暴力终止EventLog服务进程来解除日志文件的占用
 ![image](https://github.com/wqreytuk/-EventLogEraser-_windows_event_log_study/assets/48377190/0f2fd06a-9da9-427b-9546-413fe38169ac)
 
+# 用法：
+
+```
+EventLogEraser.exe C:\Users\123\Documents\1.evtx 2 4672 08/01/2023-00:00:00 100
+```
+我这个evtx是从security导出来的，所以channel选择2，上面的命令会删除eventid为4672，时间在08/01/2023-00:00:00之后的日志，最多删除100条
+
+
 上一个研究项目已经完成，再开个坑，研究windows的日志删除
 
 
