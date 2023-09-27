@@ -9,6 +9,14 @@
 
 然后再将数据定义部分的长度字段设置为0，之后将实际数据部分全部清空，即可达到下面的效果
 
+虽然EventData整个标签都是作为Event标签模板的SubstitutionData存在的，但是我们不能清空EventData模板，因为不同的record之间存在对EventData模板的依赖
+
+![image](https://github.com/wqreytuk/-EventLogEraser-_windows_event_log_study/assets/48377190/b251910a-95c7-4e86-b6ea-d073e81d2db8)
+
+可以看到这条日志的EventData模板的偏移量是0x2BA5，这个偏移量是相对于ElfChunk的偏移，也就是说模板的实际地址是0x3BA5，可以明显的看到这个地址是在当前数据所在的
+地址的前面的，因此这个模板是引用的定义在其他record中的EventData模板
+
+
 ### 原始日志条目
 
 ![image](https://github.com/wqreytuk/-EventLogEraser-_windows_event_log_study/assets/48377190/bdf2476f-4100-45cc-b68f-8690910ef7c1)
@@ -28,6 +36,8 @@
 System和EventData，我们清空了EventData，但是System节点中也有一些数据是我们不想让别人看到的
 
 我在程序中预设了EventID、Level、Task、Keywords四个字段，目标record的这四个字段会被修改成预设的值以最大限度地和正常的record混在一起
+
+
 
 **理论上讲，本工具不会损坏日志文件，再修改完日志之后从eventvwr或者wevtutil对日志进行操作时不应该产生任何异常，如果有问题，欢迎提issue**
 
