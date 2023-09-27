@@ -29,7 +29,7 @@ System和EventData，我们清空了EventData，但是System节点中也有一�
 
 我在程序中预设了EventID、Level、Task、Keywords四个字段，目标record的这四个字段会被修改成预设的值以最大限度地和正常的record混在一起
 
-理论上讲，本工具不会损坏日志文件，再修改完日志之后从eventvwr或者wevtutil对日志进行操作时不应该产生任何异常
+**理论上讲，本工具不会损坏日志文件，再修改完日志之后从eventvwr或者wevtutil对日志进行操作时不应该产生任何异常，如果有问题，欢迎提issue**
 
 
 **本工具可以进一步修改为shellcode，然后注入到eventlog服务进程中，直接对日志进行修改，从而避免产生eventlog服务日志**
