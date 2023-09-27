@@ -1,5 +1,5 @@
-#include<windows.h>
-#include<stdio.h>
+#include <windows.h>
+#include <stdio.h>
 #include <tchar.h>
 #include <strsafe.h>
 // 禁用padding
