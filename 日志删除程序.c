@@ -5,7 +5,7 @@
 // 禁用padding
 #pragma pack(1)
 
-// #define DEBUG
+#define DEBUG
 
 #define EVENT_NAME_HASH 0x0CBA
 #define SYSTEM_NAME_HASH 0x546F
@@ -584,13 +584,13 @@ int main(int argc, char* argv[]) {
         DWORD64 _last_record_sequence_number_in_current_chunk = *reinterpret_cast<DWORD64*>(_chunk_buffer + 0x20);
         DWORD64 _record_offset_sum = 0x200;
         while (1) {
+
+            _record_sequence_number = *reinterpret_cast<DWORD64*>(_chunk_buffer + _record_offset_sum + 0x8);
 #ifdef DEBUG
-            if (0xE2E0 == _record_offset_sum) {
+            if (105 == _record_sequence_number) {
                 int a = 0;
             }
 #endif 
-
-            _record_sequence_number = *reinterpret_cast<DWORD64*>(_chunk_buffer + _record_offset_sum + 0x8);
             printf("\trecord [0x%p]\n", reinterpret_cast<DWORD64*>(_record_sequence_number));
             // 我们需要把record的时间戳和length提取出来
 #ifdef DEBUG
@@ -708,6 +708,8 @@ int main(int argc, char* argv[]) {
             // 修改System标签的内容
             // 如果是目标EventID，则执行下面的操作
             if (is_condition_match(_event_id, _record_time_stamp_RAW, _target_event_id, _start_timestamp)) {
+                printf("\t\tMATCH!!!\n\n");
+                _already_erased_counter++;
                 // 修改eventid
                 SetFilePointer(_file_handle, (LONG)(retrieve_value_address(_chunk_buffer, _Substitution_ID_TABLE[_current_index][0], _iterate_start, _real_data_offset) - _chunk_buffer + 0x1000 + 0x10000 * _current_chunk), NULL, FILE_BEGIN);
                 DWORD _out = 0;
@@ -741,7 +743,6 @@ int main(int argc, char* argv[]) {
                         exit(-1);
                     }
                 if (!_Substitution_ID_TABLE[_current_index][1]) {
-                    _already_erased_counter++;
                     if (_already_erased_counter == _max_number) {
                         printf("[+] all target events have been erased\n");
                         recalculate_crc(_file_handle, NT_RtlComputeCrc32, _chunk_buffer, _current_chunk);
@@ -760,6 +761,7 @@ int main(int argc, char* argv[]) {
             // 然后将InstanceDataDef部分的长度全部修改为0，再将实际数据按照原来的长度填充为0即可
             // 我们不能在OutterTemplate通过这种方法来删除EventData的原因是，可能会有别的record单纯
             // 的依赖这个EventData模板，直接删除的话，会干扰到目标之外的日志
+            BOOL _is_empty_template = FALSE;
             if (_Substitution_ID_TABLE[_current_index][1]) {
                 // fragment header
                 DWORD64 _ofs_in_event_data = 0;
@@ -785,15 +787,12 @@ int main(int argc, char* argv[]) {
                         }
                     }
                     // 检查该offset是否已经被标记为空EventData
-                    BOOL _is_empty_template = FALSE;
                     for (int i = 0; i < ENTRY_NUMBER; i++) {
                         if (_empty_event_data_offset_table[i] == _inner_template_instance._template_def_offset) {
                             _is_empty_template = TRUE;
                             break;
                         }
-                    }
-                    if (_is_empty_template)
-                        break;
+                    }  
                 }
                 else {
                     TemplateDef _inner_template_definition = *reinterpret_cast<PTemplateDef>(_chunk_buffer + _inner_template_instance._template_def_offset);
@@ -802,84 +801,84 @@ int main(int argc, char* argv[]) {
                     _INNER_Template_OFS_TABLE[_inner_table_index] = _inner_template_instance._template_def_offset;
                     _inner_table_index++;
                 }
-                DWORD64 _real_inner_data_offset = _template_instance_data_offset + 0x4 + (DWORD64)4 * (*reinterpret_cast<DWORD*>(_chunk_buffer + _template_instance_data_offset));
-                _ofs_in_template = 0;
-                _ofs_in_template += sizeof(TemplateDef);
-                // 0x4  fragment header
-                _ofs_in_template += 4;
-                // 遍历所有的tag，修改替换类型为可选替换
-                if (!iterateTag(_file_handle, _chunk_buffer, &_inner_template_instance, _ofs_in_template, _expect_table_entry, _current_chunk, CHILD_END)) {
-                    // 遇到了空白EventData标签
-                    // 检查是否符合修改条件并调整_already_erased_counter的值
-                    if (is_condition_match(_event_id, _record_time_stamp_RAW, _target_event_id, _start_timestamp)) {
-                        _already_erased_counter++;
-                        if (_already_erased_counter == _max_number) {
-                            printf("[+] all target events have been erased\n");
-                            recalculate_crc(_file_handle, NT_RtlComputeCrc32, _chunk_buffer, _current_chunk);
-                            printf("[+] total 0x%p erased\n\n", reinterpret_cast<DWORD*>((DWORD64)_already_erased_counter));
-                            free(_chunk_buffer);
-                            CloseHandle(_file_handle);
-                            printf("[+] DONE!\n");
-                            exit(0);
+                if (!_is_empty_template) {
+                    DWORD64 _real_inner_data_offset = _template_instance_data_offset + 0x4 + (DWORD64)4 * (*reinterpret_cast<DWORD*>(_chunk_buffer + _template_instance_data_offset));
+                    _ofs_in_template = 0;
+                    _ofs_in_template += sizeof(TemplateDef);
+                    // 0x4  fragment header
+                    _ofs_in_template += 4;
+                    // 遍历所有的tag，修改替换类型为可选替换
+                    if (!iterateTag(_file_handle, _chunk_buffer, &_inner_template_instance, _ofs_in_template, _expect_table_entry, _current_chunk, CHILD_END)) {
+                        // 遇到了空白EventData标签
+                        // 检查是否符合修改条件并判断是否已经全部擦除
+                        if (is_condition_match(_event_id, _record_time_stamp_RAW, _target_event_id, _start_timestamp)) {
+                            if (_already_erased_counter == _max_number) {
+                                printf("[+] all target events have been erased\n");
+                                recalculate_crc(_file_handle, NT_RtlComputeCrc32, _chunk_buffer, _current_chunk);
+                                printf("[+] total 0x%p erased\n\n", reinterpret_cast<DWORD*>((DWORD64)_already_erased_counter));
+                                free(_chunk_buffer);
+                                CloseHandle(_file_handle);
+                                printf("[+] DONE!\n");
+                                exit(0);
+                            }
                         }
                     }
-                }
-                else {
-                    // 如果是目标EventID，则执行下面的操作
-                    if (is_condition_match(_event_id, _record_time_stamp_RAW, _target_event_id, _start_timestamp)) {
-                        // 现在我们需要处理data部分了
-                        DWORD _data_counter = *reinterpret_cast<DWORD*>(_chunk_buffer + _template_instance_data_offset);
-                        // 获取原始数据的长度
-                        DWORD _ori_data_len = 0;
-                        DWORD64 _counter = 0;
-                        _iterate_start = _template_instance_data_offset + 0x4;
-                        while (1) {
-                            if (_counter == _data_counter)
-                                break;
-                            _ori_data_len += (*reinterpret_cast<DWORD*>(_chunk_buffer + _iterate_start + (DWORD64)4 * _counter++)) & 0xFF;
-                        }
-                        // 我们先把def部分清空
+                    else {
+                        // 如果是目标EventID，则执行下面的操作
+                        if (is_condition_match(_event_id, _record_time_stamp_RAW, _target_event_id, _start_timestamp)) {
+                            // 现在我们需要处理data部分了
+                            DWORD _data_counter = *reinterpret_cast<DWORD*>(_chunk_buffer + _template_instance_data_offset);
+                            // 获取原始数据的长度
+                            DWORD _ori_data_len = 0;
+                            DWORD64 _counter = 0;
+                            _iterate_start = _template_instance_data_offset + 0x4;
+                            while (1) {
+                                if (_counter == _data_counter)
+                                    break;
+                                _ori_data_len += (*reinterpret_cast<DWORD*>(_chunk_buffer + _iterate_start + (DWORD64)4 * _counter++)) & 0xFF;
+                            }
+                            // 我们先把def部分清空
 #ifdef DEBUG
-                        printf("[DEBUG] file pointer: 0x%p\n", reinterpret_cast<DWORD*>(0x1000 + 0x10000 * _current_chunk + _template_instance_data_offset + 0x4));
+                            printf("[DEBUG] file pointer: 0x%p\n", reinterpret_cast<DWORD*>(0x1000 + 0x10000 * _current_chunk + _template_instance_data_offset + 0x4));
 #endif 
 
-                        SetFilePointer(_file_handle, (LONG)(0x1000 + 0x10000 * _current_chunk + _template_instance_data_offset + 0x4), NULL, FILE_BEGIN);
-                        BYTE* _padding = (BYTE*)malloc(_ori_data_len);
-                        if (0 == _padding) {
-                            printf("[-] odd! memory allocate failed: %x, abort...\n", GetLastError());
-                            exit(-1);
-                        }
-                        _out = 0;
-                        ZeroMemory(_padding, _ori_data_len);
-                        if (!WriteFile(_file_handle, _padding, _data_counter * 4, &_out, NULL)) {
-                            printf("[-] write evtx file failed: %x, abort...\n", GetLastError());
-                            exit(-1);
-                        }
-                        free(_padding);
-                        // 然后把data部分清空
-                        SetFilePointer(_file_handle, (LONG)(0x1000 + 0x10000 * _current_chunk + _template_instance_data_offset + 0x4 + 4 * (DWORD64)_data_counter), NULL, FILE_BEGIN);
-                        _out = 0;
-                        _padding = (BYTE*)malloc(_ori_data_len);
-                        if (0 == _padding) {
-                            printf("[-] odd! memory allocate failed: %x, abort...\n", GetLastError());
-                            exit(-1);
-                        }
-                        ZeroMemory(_padding, _ori_data_len);
-                        if (!WriteFile(_file_handle, _padding, _ori_data_len, &_out, NULL)) {
-                            printf("[-] write evtx file failed: %x, abort...\n", GetLastError());
-                            exit(-1);
-                        }
-                        free(_padding);
+                            SetFilePointer(_file_handle, (LONG)(0x1000 + 0x10000 * _current_chunk + _template_instance_data_offset + 0x4), NULL, FILE_BEGIN);
+                            BYTE* _padding = (BYTE*)malloc(_ori_data_len);
+                            if (0 == _padding) {
+                                printf("[-] odd! memory allocate failed: %x, abort...\n", GetLastError());
+                                exit(-1);
+                            }
+                            _out = 0;
+                            ZeroMemory(_padding, _ori_data_len);
+                            if (!WriteFile(_file_handle, _padding, _data_counter * 4, &_out, NULL)) {
+                                printf("[-] write evtx file failed: %x, abort...\n", GetLastError());
+                                exit(-1);
+                            }
+                            free(_padding);
+                            // 然后把data部分清空
+                            SetFilePointer(_file_handle, (LONG)(0x1000 + 0x10000 * _current_chunk + _template_instance_data_offset + 0x4 + 4 * (DWORD64)_data_counter), NULL, FILE_BEGIN);
+                            _out = 0;
+                            _padding = (BYTE*)malloc(_ori_data_len);
+                            if (0 == _padding) {
+                                printf("[-] odd! memory allocate failed: %x, abort...\n", GetLastError());
+                                exit(-1);
+                            }
+                            ZeroMemory(_padding, _ori_data_len);
+                            if (!WriteFile(_file_handle, _padding, _ori_data_len, &_out, NULL)) {
+                                printf("[-] write evtx file failed: %x, abort...\n", GetLastError());
+                                exit(-1);
+                            }
+                            free(_padding);
 
-                        _already_erased_counter++;
-                        if (_already_erased_counter == _max_number) {
-                            printf("[+] all target events have been erased\n");
-                            recalculate_crc(_file_handle, NT_RtlComputeCrc32, _chunk_buffer, _current_chunk);
-                            printf("[+] total 0x%p erased\n\n", reinterpret_cast<DWORD*>((DWORD64)_already_erased_counter));
-                            free(_chunk_buffer);
-                            CloseHandle(_file_handle);
-                            printf("[+] DONE!\n");
-                            exit(0);
+                            if (_already_erased_counter == _max_number) {
+                                printf("[+] all target events have been erased\n");
+                                recalculate_crc(_file_handle, NT_RtlComputeCrc32, _chunk_buffer, _current_chunk);
+                                printf("[+] total 0x%p erased\n\n", reinterpret_cast<DWORD*>((DWORD64)_already_erased_counter));
+                                free(_chunk_buffer);
+                                CloseHandle(_file_handle);
+                                printf("[+] DONE!\n");
+                                exit(0);
+                            }
                         }
                     }
                 }
@@ -904,6 +903,7 @@ int main(int argc, char* argv[]) {
         _inner_table_index = 0;
         // 判断是否已经遍历完了所有的chunk
         if (_record_sequence_number == _last_record_sequence_number) {
+            printf("[+] all records in current log file have been checked out\n\n");
             printf("[+] total 0x%p erased\n\n", reinterpret_cast<DWORD*>((DWORD64)_already_erased_counter));
             printf("[+] DONE!\n");
             break;
