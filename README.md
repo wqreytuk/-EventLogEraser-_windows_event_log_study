@@ -1,3 +1,12 @@
+提issue的时候，可能需要你提供自己的evtx文件（如果方便的话）
+
+请打包加密之后放到：https://www.wenshushu.cn/
+
+然后压缩包密码使用下面这个公钥进行加密：
+https://github.com/wqreytuk/-EventLogEraser-_windows_event_log_study/blob/main/rsa_pub.key
+
+rsa在线加密：https://www.devglan.com/online-tools/rsa-encryption-decryption
+
 # 特点
 
 本工具和其他日志清除工具的区别在于，我并不会直接删除掉指定的日志条目，由于windows的binxml编码标准提供了模板特性，所以直接删除掉日志条目
