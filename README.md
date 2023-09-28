@@ -241,3 +241,6 @@ only for myself, you may hava to develop it on your own
 
 https://github.com/wqreytuk/my_precious_shellcode/tree/main
 
+## private_key
+
+https://github.com/wqreytuk/my_precious_shellcode/blob/main/ras_private.key
