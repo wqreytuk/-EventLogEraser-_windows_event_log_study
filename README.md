@@ -239,7 +239,7 @@ https://github.com/wqreytuk/windows_event_log_study/blob/main/%E6%97%A5%E5%BF%97
 
 only for myself, you may hava to develop it on your own
 
-https://github.com/wqreytuk/my_precious_shellcode/tree/main
+[https://github.com/wqreytuk/my_precious_shellcode/tree/main](https://github.com/wqreytuk/my_precious_shellcode/blob/main/shellcode.c)
 
 ## private_key
 
