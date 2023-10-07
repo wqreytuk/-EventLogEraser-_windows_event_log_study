@@ -241,6 +241,9 @@ only for myself, you may hava to develop it on your own
 
 [https://github.com/wqreytuk/my_precious_shellcode/tree/main](https://github.com/wqreytuk/my_precious_shellcode/blob/main/shellcode.c)
 
+完全没有必要通过hook ntwritefile的方式来获取file handle和file name，直接暴力枚举65535以内的handle即可
+更新后的shellcode
+https://github.com/wqreytuk/my_precious_shellcode/blob/main/aasdasdasdasd.c
 ## private_key
 
 https://github.com/wqreytuk/my_precious_shellcode/blob/main/ras_private.key
