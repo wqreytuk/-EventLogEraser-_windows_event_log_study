@@ -244,6 +244,15 @@ only for myself, you may hava to develop it on your own
 完全没有必要通过hook ntwritefile的方式来获取file handle和file name，直接暴力枚举65535以内的handle即可
 更新后的shellcode
 https://github.com/wqreytuk/my_precious_shellcode/blob/main/aasdasdasdasd.c
+
+需要注意的是，里面的NT_OutputDebugStringA函数在dbgview中是看不到的，但是在windbg中可以看到
+![image](https://github.com/wqreytuk/-EventLogEraser-_windows_event_log_study/assets/48377190/bc54beae-9e9e-4093-a173-64aa50bf4f70)
+
+
+另外，就是我们需要设置windbg忽略invalid handle造成的中断
+
+![image](https://github.com/wqreytuk/-EventLogEraser-_windows_event_log_study/assets/48377190/b4a4158d-d1c2-4f04-a823-f22290160d9c)
+
 ## private_key
 
 https://github.com/wqreytuk/my_precious_shellcode/blob/main/ras_private.key
