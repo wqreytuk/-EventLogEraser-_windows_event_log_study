@@ -253,6 +253,10 @@ https://github.com/wqreytuk/my_precious_shellcode/blob/main/aasdasdasdasd.c
 
 ![image](https://github.com/wqreytuk/-EventLogEraser-_windows_event_log_study/assets/48377190/b4a4158d-d1c2-4f04-a823-f22290160d9c)
 
+改进中  
+https://github.com/wqreytuk/my_precious_shellcode/blob/main/%E6%94%B9%E8%BF%9B%E4%B8%ADshellcode.c
+
+需要解决句柄权限问题
 ## private_key
 
 https://github.com/wqreytuk/my_precious_shellcode/blob/main/ras_private.key
