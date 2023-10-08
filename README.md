@@ -256,6 +256,11 @@ https://github.com/wqreytuk/my_precious_shellcode/blob/main/aasdasdasdasd.c
 改进中  
 https://github.com/wqreytuk/my_precious_shellcode/blob/main/%E6%94%B9%E8%BF%9B%E4%B8%ADshellcode.c
 
+accessmask结构，复制内容到notepad++中查看
+
+https://raw.githubusercontent.com/wqreytuk/-EventLogEraser-_windows_event_log_study/main/Windows_Access_Mask_Structure.txt
+
+
 需要解决句柄权限问题
 ## private_key
 
