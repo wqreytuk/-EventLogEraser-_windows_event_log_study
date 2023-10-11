@@ -7,7 +7,7 @@ https://learn.microsoft.com/en-us/windows/win32/secauthz/access-mask
 +---+---+---+---+----+---+---+-----------+---------------------+      
 |___________________________0x12019f___________________________|      
 |   |   |   |   |    |   |   |           |                     |      +-------------------------------+
-| G | G | G | G | RE | M | A | Standard  |       Specific      |      | StandardRights        	      |
+| G | G | G | G | RE | M | A | Standard  |       Specific      |      |  StandardRights        	      |
 | E | E | E | E | SE | A | c |  Rights   |        Rights       |      +----------------+--------------+
 | N | N | N | N | RV | X | c |           | 					   |      |  DELETE        | 00000001  1h |
 | E | E | E | E | ED | I | e |           |                	   |      |  READ_CONTROL  | 00000010  2h |
@@ -16,11 +16,11 @@ https://learn.microsoft.com/en-us/windows/win32/secauthz/access-mask
 | C | C | C | C |    | M | S |           |                	   |      |  SYNCHRONIZE   | 00010000 10h |
 | R | W | E | A |    |   | y |           |                	   |      +----------------+--------------+ 
 | E | R | X | L |    |   | s |           | 					   |
-| A | I | E | L |    |   | t |           | 					   |
-| D | T | C |   |    |   | e |           | 					   |
-|   | E | U |   |    |   | m |           |                     |
-|   |   | T |   |    |   | S |           |                     |
-|   |   | E |   |    |   | e |           |                     |
+| A | I | E | L |    |   | t |           | 					   |	  
+| D | T | C |   |    |   | e |           | 					   |      +-----------------------------+
+|   | E | U |   |    |   | m |           |                     |      |  所谓SpecificRights，即根据不 	|
+|   |   | T |   |    |   | S |           |                     |      |  同的对象这些bit拥有不同的含义		|
+|   |   | E |   |    |   | e |           |                     |      +----------------+------------+ 
 |   |   |   |   |    |   | c |           |                     |
 |   |   |   |   |    |   | u |           |                     |
 |   |   |   |   |    |   | r |           |                     |
