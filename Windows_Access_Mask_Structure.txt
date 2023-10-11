@@ -7,7 +7,7 @@ https://learn.microsoft.com/en-us/windows/win32/secauthz/access-mask
 +---+---+---+---+----+---+---+-----------+---------------------+      
 |___________________________0x12019f___________________________|      
 |   |   |   |   |    |   |   |           |                     |      +-------------------------------+
-| G | G | G | G | RE | M | A | Standard  |       Specific      |      | StandardRights        	     |
+| G | G | G | G | RE | M | A | Standard  |       Specific      |      | StandardRights        	      |
 | E | E | E | E | SE | A | c |  Rights   |        Rights       |      +----------------+--------------+
 | N | N | N | N | RV | X | c |           | 					   |      |  DELETE        | 00000001  1h |
 | E | E | E | E | ED | I | e |           |                	   |      |  READ_CONTROL  | 00000010  2h |
