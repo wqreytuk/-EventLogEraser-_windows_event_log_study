@@ -264,6 +264,10 @@ file specific rights:
 
 https://learn.microsoft.com/en-us/windows/win32/fileio/file-access-rights-constants
 
+改进中主程序：
+
+https://github.com/wqreytuk/my_precious_shellcode/blob/main/%E6%94%B9%E8%BF%9B%E4%B8%AD%E5%91%A8%E6%88%90%E6%9F%B1%E4%B8%BB%E7%A8%8B%E5%BA%8Fc.c
+
 需要解决句柄权限问题
 ## private_key
 
