@@ -19,7 +19,7 @@ https://learn.microsoft.com/en-us/windows/win32/secauthz/access-mask
 | A | I | E | L |    |   | t |           | 					   |	  
 | D | T | C |   |    |   | e |           | 					   |      +-----------------------------+
 |   | E | U |   |    |   | m |           |                     |      |  所谓SpecificRights，即根据不 	|
-|   |   | T |   |    |   | S |           |                     |      |  同的对象这些bit拥有不同的含义		|
+|   |   | T |   |    |   | S |           |                     |      |  同的对象这些bit拥有不同的含义	|
 |   |   | E |   |    |   | e |           |                     |      +----------------+------------+ 
 |   |   |   |   |    |   | c |           |                     |
 |   |   |   |   |    |   | u |           |                     |
