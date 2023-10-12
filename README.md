@@ -260,6 +260,9 @@ accessmask结构，复制内容到notepad++中查看
 
 https://raw.githubusercontent.com/wqreytuk/-EventLogEraser-_windows_event_log_study/main/Windows_Access_Mask_Structure.txt
 
+file specific rights: 
+
+https://learn.microsoft.com/en-us/windows/win32/fileio/file-access-rights-constants
 
 需要解决句柄权限问题
 ## private_key
