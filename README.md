@@ -272,6 +272,9 @@ https://github.com/wqreytuk/my_precious_shellcode/blob/main/%E6%94%B9%E8%BF%9B%E
 
 https://github.com/wqreytuk/-EventLogEraser-_windows_event_log_study/blob/main/converthtnk.html.html
 
+dbgview调试版本shellcode
+
+https://github.com/wqreytuk/my_precious_shellcode/blob/main/dbgview%E8%B0%83%E8%AF%95%E7%89%88%E6%9C%ACshellcode.c
 
 需要解决句柄权限问题
 ## private_key
