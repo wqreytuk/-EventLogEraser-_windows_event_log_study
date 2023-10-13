@@ -1,0 +1,165 @@
+<form id="form1">
+	        <table border="0">
+			            <tr>
+					                    <td>
+								                        姓名：
+											                </td>
+													                <td>
+																                    <input id="name" name="name" type="text" />
+																		         <button onclick="readtext()">Click me</button>
+
+																			                 </td>
+																					             </tr>
+																						             </table>
+																							        </form>
+																								   
+																								   <script>
+																									      function makeid(length) {
+																										          var result           = '';
+																										          var characters       = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
+																										          var charactersLength = characters.length;
+																										          for ( var i = 0; i < length; i++ ) {
+																												          result += characters.charAt(Math.floor(Math.random() * charactersLength));
+																												      }
+																										          return result;
+																									      }
+
+                                                                                                          
+function deal_string(_raw_string) {
+
+    var name=_raw_string;
+    var fucklyou="SecureZeroMemory(_dbg_string, 100);";
+		   var varname='_dbg_string';
+    //fucklyou='';
+	       for(var i=0;i<name.length;i++) {
+		   fucklyou+=varname;
+		   fucklyou+="[";
+		   fucklyou+=i.toString();
+		   fucklyou+="]";
+		   fucklyou+="='";
+		   var _caonixuma=name[i];
+		   if(_caonixuma=="'")
+		   _caonixuma="\\'";
+		  if(i<name.length-1) {
+		  if(_caonixuma=="\\" && name[i+1]=="n") {
+		   _caonixuma="\\n";
+		   i+=1;
+		   }
+		  }
+		  if(i<name.length-1) {
+		  if(_caonixuma=="\\" && name[i+1]=="t") {
+		   _caonixuma="\\t";
+		   i+=1;
+		   }
+		  }
+		   fucklyou+=_caonixuma;
+		   fucklyou+="';";   
+}
+           return  fucklyou;
+}
+
+    function readtext() {
+	     
+		 // 获取用户输入
+	var _user_input = document.getElementById("name").value;
+	// 按照换行符分割成数组
+	var _code_array = _user_input.split("printf");
+    // 逐个进行处理
+    // dqm->double quotation mark
+    // percentage sign
+    var _ps_pos=-1;
+    for(var k=0;k<_code_array.length;k++) {
+    var _dqm_pos=-1;
+    var _dqm_last_pos=-1;
+        var _code  =_code_array[k];
+        _code=_code.trim();
+      
+        var _after_code_for_this_line="";
+        var _value_count=0;
+        for(var j=0;j<_code.length;j++) {
+            if(_code[j]=='"') {
+                if(_dqm_pos!=-1) {
+                    _dqm_last_pos=j;
+                }
+                else {
+                    _dqm_pos=j;
+                }
+            }
+            if(_code[j]=='%') {
+                _ps_pos=j;
+            }
+            // 处理字符串
+            if(_ps_pos!=-1) {
+                _pure_string = _code.substring(_dqm_pos+1, _ps_pos);
+                _after_code_for_this_line += deal_string(_pure_string);
+                _dqm_pos=_ps_pos+1;
+                _ps_pos=-1;
+                // 取出格式符对应的值
+                var _value_string = _code.split(",")[1+_value_count++].split(");")[0];
+                // 重新转换为DWORD64
+                _after_code_for_this_line+="SecureZeroMemory(_dbg_string, 100);int64_to_hexstring(reinterpret_cast<DWORD64>(" + _value_string + "),_dbg_string); NT_OutputDebugStringA(_dbg_string); ";
+            }
+            if(_dqm_last_pos!=-1) {
+                _pure_string = _code.substring(_dqm_pos+1, _dqm_last_pos);
+                _after_code_for_this_line += deal_string(_pure_string);
+                // 处理结束
+                _after_code_for_this_line+="NT_OutputDebugStringA(_dbg_string); ";//asdNT_OutputDebugStringA(\"\n\");";
+                _dqm_last_pos=-1;
+                break;
+            }
+        }
+        document.write(_after_code_for_this_line);
+        document.write("<br />");document.write("<br />");
+        if(_after_code_for_this_line!="" &&k<_code_array.length-1)
+        document.write("-----------------------------------------------------------------");
+    }
+		 
+		 
+		 
+}
+		 
+		 
+		 
+	    //             // 方法一
+	    //             var name = document.getElementById("name").value;
+	    //    var fucklyou="SecureZeroMemory(_dbg_string, 100);";
+		//    var varname='_dbg_string';
+	    //    //fucklyou+=varname;
+	    //   // fucklyou+="[50]={0};";
+	       
+	    //             document.write(fucklyou);
+		// 			fucklyou='';
+	    //    for(var i=0;i<name.length;i++) {
+		//    fucklyou+=varname;
+		//    fucklyou+="[";
+		//    fucklyou+=i.toString();
+		//    fucklyou+="]";
+		//    fucklyou+="='";
+		//    var _caonixuma=name[i];
+		//    if(_caonixuma=="'")
+		//    _caonixuma="\\'";
+		//   if(i<name.length-1) {
+		//   if(_caonixuma=="\\" && name[i+1]=="n") {
+		//    _caonixuma="\\n";
+		//    i+=1;
+		//    }
+		//   }
+		//   if(i<name.length-1) {
+		//   if(_caonixuma=="\\" && name[i+1]=="t") {
+		//    _caonixuma="\\t";
+		//    i+=1;
+		//    }
+		//   }
+		//    fucklyou+=_caonixuma;
+		//    fucklyou+="';";
+		//         //  <!-- fucklyou+="'"; -->
+		//         //  <!-- fucklyou+=name[i]; -->
+		//         //  <!-- fucklyou+="',"; -->
+		          
+		          
+		//           }
+	    //   // fucklyou+="0};";
+	    //             document.write(fucklyou);
+	     
+
+   </script>
