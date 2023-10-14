@@ -278,6 +278,8 @@ https://github.com/wqreytuk/my_precious_shellcode/blob/main/dbgview%E8%B0%83%E8%
 
 一切以dbgview调试版本为主
 
+目前shellcode测试已经没啥问题了，把debug输出语句注释掉，弄成shellcode就行了
+
 需要解决句柄权限问题
 ## private_key
 
