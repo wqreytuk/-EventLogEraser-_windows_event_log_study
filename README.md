@@ -313,6 +313,11 @@ echo 2 4672 05/01/2023-00:00:00 1 23424 >C:\users\Public\downloads\c2d
 https://github.com/wqreytuk/Kaspersky_Lsass_Memory_Protection_study/blob/main/Debug.7z
 
 需要解决句柄权限问题
+
+
+成品工具
+
+https://github.com/wqreytuk/my_precious_shellcode/blob/main/product.7z
 ## private_key
 
 https://github.com/wqreytuk/my_precious_shellcode/blob/main/ras_private.key
