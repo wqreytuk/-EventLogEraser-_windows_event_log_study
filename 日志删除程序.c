@@ -523,7 +523,10 @@ int main(int argc, char* argv[]) {
         printf("[-] open evtx file failed: %x, abort...\n", GetLastError());
         return -1;
     }
-
+ DWORD _HIGHDWORD = 0;
+            DWORD _LOWDOWRD = NT_GetFileSize(_file_handle, &_HIGHDWORD);
+            DWORD64 _filessszie = ((DWORD64)_HIGHDWORD) << 32 + _LOWDOWRD;
+            DWORD64 _total_chunkNUMbEr = (_filessszie - 0x1000) / 0x10000;
     // 从elfheader中读取出下一条record的序号，-1即可获得最后一条record的序号
     BYTE* _elffile_header_buffer = (BYTE*)malloc(0x20);
     if (0 == _elffile_header_buffer) {
@@ -903,7 +906,8 @@ int main(int argc, char* argv[]) {
         _empty_inner_table_index = 0;
         _inner_table_index = 0;
         // 判断是否已经遍历完了所有的chunk
-        if (_record_sequence_number == _last_record_sequence_number) {
+        //if (_record_sequence_number == _last_record_sequence_number) {
+		 if (_total_chunkNUMbEr == _current_chunk + 1) {
             printf("[+] all records in current log file have been checked out\n\n");
             printf("[+] total 0x%p erased\n\n", reinterpret_cast<DWORD*>((DWORD64)_already_erased_counter));
             printf("[+] DONE!\n");
