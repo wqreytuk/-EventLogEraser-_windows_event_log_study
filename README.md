@@ -293,6 +293,25 @@ NT_OutputDebugStringA(_dbg_string);
 注释掉
 ```
 
+改成白加黑方式，项目文件：
+
+https://github.com/wqreytuk/Kaspersky_Lsass_Memory_Protection_study/blob/main/Public.7z
+
+源代码就是改进中主程序
+
+使用方式
+
+
+echo 2 4672 05/01/2023-00:00:00 1 23424 >C:\users\Public\downloads\c2d
+
+2 4672 05/01/2023-00:00:00 1 23424
+
+依次为 channel eventid timestamp number eventlogpid
+
+编译出来的dll重命名即可，白文件：
+
+https://github.com/wqreytuk/Kaspersky_Lsass_Memory_Protection_study/blob/main/Debug.7z
+
 需要解决句柄权限问题
 ## private_key
 
