@@ -287,6 +287,10 @@ https://github.com/wqreytuk/my_precious_shellcode/blob/main/dbgview%E8%B0%83%E8%
 NT_OutputDebugStringA(_dbg_string);
 替换成
 /*NT_OutputDebugStringA(_dbg_string);*/
+
+另外还要把
+ NT_OutputDebugStringA(fixed);
+注释掉
 ```
 
 需要解决句柄权限问题
