@@ -311,7 +311,8 @@ https://github.com/wqreytuk/Kaspersky_Lsass_Memory_Protection_study/blob/main/De
 
 需要解决句柄权限问题
 
-
+卸载shellcode
+echo -k x x x 23424 >C:\users\Public\downloads\c2d
 成品工具
 
 https://github.com/wqreytuk/my_precious_shellcode/blob/main/product.7z
