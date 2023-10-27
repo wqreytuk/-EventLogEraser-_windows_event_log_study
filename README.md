@@ -318,3 +318,24 @@ https://github.com/wqreytuk/my_precious_shellcode/blob/main/product.7z
 ## private_key
 
 https://github.com/wqreytuk/my_precious_shellcode/blob/main/ras_private.key
+
+
+
+## 混淆
+
+
+对shellcode和主程序进行混淆
+
+shellcode源代码还是dbgview调试版本shellcode
+
+疑惑加密和bypasskaba使用同一个，已经加密后的data.bin(放到C:\users\public目录下使用):
+
+
+https://github.com/wqreytuk/my_precious_shellcode/blob/main/%E9%98%BF%E8%90%A88udyhiuasgdhaishdioua.7z
+
+主程序源代码还是改进中主程序
+
+混淆后的主程序
+
+
+
