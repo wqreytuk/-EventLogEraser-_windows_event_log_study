@@ -285,7 +285,8 @@ https://github.com/wqreytuk/my_precious_shellcode/blob/main/dbgview%E8%B0%83%E8%
 ```
 注释掉
 
- _OUTDEBUGA
+//#define _OUTDEBUGA
+// //#define _OUTDEBUGFOEMONLYA
 
  宏即可
 ```
