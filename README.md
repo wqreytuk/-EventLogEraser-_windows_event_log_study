@@ -335,7 +335,7 @@ https://github.com/wqreytuk/my_precious_shellcode/blob/main/%E9%98%BF%E8%90%A88u
 
 主程序源代码还是改进中主程序
 
-混淆后的主程序
+字符串疑惑处理并混淆后的主程序
 
 
 
