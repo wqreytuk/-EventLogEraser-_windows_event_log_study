@@ -337,7 +337,14 @@ https://github.com/wqreytuk/my_precious_shellcode/blob/main/%E9%98%BF%E8%90%A88u
 
 主程序源代码还是改进中主程序
 
-字符串疑惑处理并混淆后的主程序
+字符串疑惑处理并混淆后的主程序源代码：
 
+https://github.com/wqreytuk/my_precious_shellcode/blob/main/%E7%96%91%E6%83%91%E6%B7%B7%E6%B7%86%E4%B9%8B%E5%90%8E%E7%9A%84%E4%B8%BB%E7%A8%8B%E5%BA%8F.c
+
+
+编译好的主程序：
+
+
+https://github.com/wqreytuk/my_precious_shellcode/blob/main/ConsoleApplicaasdasdasdasdasdastion2.7z
 
 
