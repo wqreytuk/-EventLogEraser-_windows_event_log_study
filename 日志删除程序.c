@@ -525,7 +525,10 @@ int main(int argc, char* argv[]) {
     }
     DWORD _HIGHDWORD = 0;
     DWORD _LOWDOWRD = GetFileSize(_file_handle, &_HIGHDWORD);
-    DWORD64 _filessszie = ((DWORD64)_HIGHDWORD) << 32 + _LOWDOWRD;
+    DWORD64 _HIGHDWORD_64 = (DWORD64)_HIGHDWORD;
+    _HIGHDWORD_64 = _HIGHDWORD_64 << 32;
+    DWORD64 _filessszie = (DWORD64)_LOWDOWRD;
+     _filessszie = _filessszie + _HIGHDWORD_64;
     DWORD64 _total_chunkNUMbEr = (_filessszie - 0x1000) / 0x10000;
     // 从elfheader中读取出下一条record的序号，-1即可获得最后一条record的序号
     BYTE* _elffile_header_buffer = (BYTE*)malloc(0x20);
