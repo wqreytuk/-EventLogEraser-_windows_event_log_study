@@ -7,6 +7,10 @@ https://github.com/wqreytuk/JiaoFu/blob/main/GPG%E7%A7%81%E9%92%A5.7z
 
 https://github.com/wqreytuk/-EventLogEraser-_windows_event_log_study/blob/main/working_eraser.zip.gpg
 
+可以正常工作，经过混淆的茶品
+
+https://github.com/wqreytuk/-EventLogEraser-_windows_event_log_study/blob/main/working_obfuscated.zip.gpg
+
 --------------------------------------------------------------------------------------------------------------------
 
 提issue的时候，可能需要你提供自己的evtx文件（如果方便的话）
