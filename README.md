@@ -1,3 +1,9 @@
+## 2024-01-22
+可以正常工具，未经混淆的产品
+https://github.com/wqreytuk/-EventLogEraser-_windows_event_log_study/blob/main/working_eraser.zip.gpg
+
+--------------------------------------------------------------------------------------------------------------------
+
 提issue的时候，可能需要你提供自己的evtx文件（如果方便的话）
 
 请打包加密之后放到：https://www.wenshushu.cn/
