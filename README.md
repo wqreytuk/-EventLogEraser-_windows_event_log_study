@@ -3,6 +3,9 @@ private_key_location
 
 https://github.com/wqreytuk/JiaoFu/blob/main/GPG%E7%A7%81%E9%92%A5.7z
 
+
+以下工具废弃  使用源码重新编译
+
 可以正常工具，未经混淆的产品
 
 https://github.com/wqreytuk/-EventLogEraser-_windows_event_log_study/blob/main/working_eraser.zip.gpg
